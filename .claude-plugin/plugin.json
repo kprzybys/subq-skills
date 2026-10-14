@@ -1,0 +1,12 @@
+{
+  "name": "subq",
+  "version": "0.1.0",
+  "description": "Agent skill for building with the SubQ Decisions API (SubQ Snap, model subq-snap-preview).",
+  "author": {
+    "name": "Karol Przybyszewski",
+    "url": "https://github.com/kprzybys"
+  },
+  "homepage": "https://github.com/kprzybys/subq-skills",
+  "repository": "https://github.com/kprzybys/subq-skills",
+  "license": "MIT"
+}
