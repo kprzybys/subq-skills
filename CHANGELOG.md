@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+- Skill: Jev limits follow the reworded TypeSafe models page (per-request and per-question context, no separate
+  limit on the number of questions); docs snapshot refreshed.
 - Evals: `jev-to-snap` facts checked by regex graders instead of one long llm rubric (the haiku judge rejected
   correct answers); rubric wording no longer penalises a redirect guard or example thresholds; run history in
   `evals/history/LOG.md` (five runs on 2026-10-14).

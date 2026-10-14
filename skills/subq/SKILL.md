@@ -196,8 +196,8 @@ https://github.com/kprzybys/snap-vs-jev-swe).
 | Endpoint | `https://api.subq.ai/v1/systemone` | `https://api.typesafe.ai/v1/systemone` |
 | Model ID | `subq-snap-preview` | `jev-latest` (alias of `jev-1.13.0`) |
 | Key variable | `SUBQ_API_KEY` | `TYPESAFE_API_KEY` |
-| Context (*docs*) | 384K tokens per request | 64k per request; 32k for state plus the longest question |
-| Questions per request (*docs*) | 1–16 | see the TypeSafe docs |
+| Context (*docs*) | 384K tokens per request | 64k per request (state plus all questions); 32k per question (state plus any one question) |
+| Questions per request (*docs*) | 1–16 | no separate limit; the request must fit both context limits |
 | Images (*docs*) | up to 4 | text only |
 | Price (*docs*) | $0.05 / 1M input tokens, output free | $0.042 / 1M input tokens, output free |
 | Error body (*docs*) | `{"detail": {"error_type", "message"}}` | HTTP status with a JSON body |

@@ -12,17 +12,26 @@ Jev is TypeSafe's flagship model and the first [System One model](/concepts/syst
 | :- | :- |
 | Price (per Btok / per Mtok) | \$42 / \$0.042 |
 | Rate limits | 100K tokens per second / 80 requests per second |
-| Context length | 64k tokens per request; 32k tokens for `state` plus the longest question |
+| Context length | 64k tokens per-request context / 32k tokens per-question context |
 | Input | Text only. String, JSON object, or array of text values. No image, audio, or video input. |
 
 * **Price:** Charged per input token. Output tokens are free. A Btok is a billion tokens and an Mtok is a million tokens.
 * **Rate limits:** Measured in tokens per second and requests per second. A request over either limit returns `429 Too Many Requests`. Our [client SDKs](/sdk) retry with backoff by default and honor the `retry-after` header when the response carries one. If you call the HTTP API directly, see [Handling rate limits](/api#handling-rate-limits).
-* **Context length:** Jev ingests the `state` once and evaluates every question against it in parallel. The 64k budget covers the `state` plus all questions combined; the 32k budget applies to the `state` plus the single longest question. See [Speculative fan-out](/patterns/fan-out) for packing many questions into one request, and [Jev 1.13 jaggedness](/model-jaggedness/jev-1.13) for how accuracy shifts as the state grows.
+* **Context length:** Two limits, the per-request context and the per-question context. See [Context length](#context-length).
 * **Input:** Jev evaluates natural-language text. Pre-process non-text inputs (images, audio, video, binaries) into text or structured fields before sending them as `state`. See [State](/concepts/state) for supported shapes.
 
 <Warning>
   **Rate limits are adjusting dynamically.** We are serving a very large volume of demand, and the limits above can change without notice while we do, as upcoming large GPU deals land and we let in more users. Once things settle down more, we'll be able to offer more stable limits. Higher limits are available on custom and enterprise plans. Contact [sales@typesafe.ai](mailto:sales@typesafe.ai).
 </Warning>
+
+### Context length
+
+Jev ingests the `state` once and evaluates every question against it in parallel. A request has to fit two context limits:
+
+* **Per-request context** (`per_request_context`): the `state` plus all questions combined.
+* **Per-question context** (`per_question_context`): the `state` plus any one question.
+
+There is no separate limit on the number of questions in a request. Any number of questions is allowed as long as the request fits both limits. See [Speculative fan-out](/patterns/fan-out) for packing many questions into one request, and [Jev 1.13 jaggedness](/model-jaggedness/jev-1.13) for how accuracy shifts as the state grows.
 
 ## Aliases
 
