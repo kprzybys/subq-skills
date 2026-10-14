@@ -68,8 +68,14 @@ Answer from the API (a real response, probabilities rounded; 246 input tokens, a
 What the code does with it: urgent (0.81 above the threshold set on labelled tickets) goes to the top of the queue;
 the team choice has moderate confidence (0.62, billing 0.71 vs engineering 0.21), so whether it is auto-assigned or
 sent to a person depends on the cutoff chosen on labelled data; severity rounds to level 2, "cannot use the product". `python3 skills/subq/examples/snap_client.py --demo`
-sends exactly this request and follows the retry rules from the skill; pass a JSON file (or `-` for stdin) with
-`state` and `questions` to send your own.
+sends exactly this request and follows the retry rules from the skill. To send your own, put `state` and
+`questions` in a JSON file (or pipe it on stdin); the full response JSON goes to stdout:
+
+```bash
+echo '{"state": "The kettle arrived cracked. I want my money back.",
+       "questions": {"refund": {"type": "noul", "instructions": "Does the customer ask for a refund?"}}}' \
+  | python3 skills/subq/examples/snap_client.py -
+```
 
 ## Day-to-day uses from Claude Code
 
@@ -133,12 +139,15 @@ Claude Code then reads the files from disk.
 - **Tests and lint**: `cd skills/subq/examples && python3 -m unittest test_snap_client`, and
   `ruff check --select E,F,W,I,B,UP,N --line-length 120 skills scripts evals/history`. CI runs both plus
   `claude plugin validate .`.
-- **Evals**: `evals/` holds `claude plugin eval` cases (ticket triage, Jev → Snap migration, question design).
-  One run costs about $1.2 per arm:
+- **Evals**: `evals/` holds `claude plugin eval` cases (ticket triage, Jev → Snap migration, question design,
+  photo damage check without a host name, quick live test). One run costs about $1.2 per arm:
 
   ```bash
   claude plugin eval . --trust-plugin --allow-tools Write WebFetch --no-publish -j 3
   ```
+
+  `quick-live-test` also needs `Bash` in `--allow-tools`; the eval sandbox refuses Bash on a machine whose
+  `~/.ssh` contains a symbolic link.
 
   Past runs and what they showed are logged in `evals/history/LOG.md`.
 - **Docs freshness**: `python3 scripts/check_docs.py` diffs the live SubQ and TypeSafe pages the skill relies on

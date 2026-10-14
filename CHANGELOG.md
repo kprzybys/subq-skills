@@ -1,18 +1,17 @@
 # Changelog
 
-## Unreleased
-- Evals: new cases `photo-damage-no-host` (no host name in the prompt, images, 400/422 handling) and
-  `quick-live-test` (uses the bundled client and the key wrapper instead of new glue code); `jev-to-snap` rubric
-  follows the reworded Jev limits; runs 6–7 in `evals/history/LOG.md`.
-- Skill: the Snap vs Jev table and benchmarks moved to `references/snap-vs-jev.md`; SKILL.md keeps the switch
-  summary and says when to read the reference (about 300 fewer words loaded on every use).
-- Example client is now a command: `snap_client.py request.json|-` prints the response JSON, `--demo` sends the
-  built-in request, exit codes 0/1/2; the skill tells the agent to use it instead of writing glue code; 6 new tests.
+## 0.2.0 — 2026-10-14
+- Example client is now a command: `snap_client.py request.json` (or `-` for stdin) sends one decision and prints
+  the response JSON with `latency_ms`; `--demo` sends the built-in request; exit codes 0 / 1 (API or network) /
+  2 (bad request file). The skill tells the agent to run it for one-off requests instead of writing glue code.
+  Six new tests (18 in total).
+- Skill: the Snap vs Jev table and benchmarks moved to `references/snap-vs-jev.md`, read only before a migration
+  or a model choice (about 300 fewer words loaded on every use).
 - Skill: Jev limits follow the reworded TypeSafe models page (per-request and per-question context, no separate
   limit on the number of questions); docs snapshot refreshed.
-- Evals: `jev-to-snap` facts checked by regex graders instead of one long llm rubric (the haiku judge rejected
-  correct answers); rubric wording no longer penalises a redirect guard or example thresholds; run history in
-  `evals/history/LOG.md` (five runs on 2026-10-14).
+- Evals: new cases `photo-damage-no-host` (no host name in the prompt, images, 400/422 handling) and
+  `quick-live-test` (bundled client behind the key wrapper); `jev-to-snap` facts checked by regex graders instead
+  of one long llm rubric. Runs 1–7 with notes in `evals/history/LOG.md`.
 
 ## 0.1.1 — 2026-10-14
 - Example client: no redirects (urllib forwarded the key to the redirect target), retries also on dropped
