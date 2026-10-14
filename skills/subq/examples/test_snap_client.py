@@ -146,5 +146,64 @@ class DecideTests(unittest.TestCase):
         self.assertEqual(sent, [{"mediaType": "image/png", "base64": "AAAA"}])
 
 
+class MainTests(unittest.TestCase):
+    """The command-line wrapper: request parsing, exit codes, output streams."""
+
+    def run_main(self, argv, stdin_text="", decide_fn=None):
+        self.calls = []
+
+        def fake_decide(state, questions, images=None):
+            self.calls.append((state, questions, images))
+            return json.loads(json.dumps(OK))
+
+        out, err = io.StringIO(), io.StringIO()
+        code = snap_client.main(argv, stdin=io.StringIO(stdin_text), stdout=out, stderr=err,
+                                decide_fn=decide_fn or fake_decide)
+        return code, out.getvalue(), err.getvalue()
+
+    def test_stdin_request_prints_response_with_latency(self):
+        code, out, err = self.run_main(["-"], json.dumps({"state": "s", "questions": QUESTIONS}))
+        self.assertEqual(code, 0)
+        self.assertEqual(self.calls, [("s", QUESTIONS, None)])
+        result = json.loads(out)
+        self.assertEqual(result["answers"], OK["answers"])
+        self.assertIn("latency_ms", result)
+        self.assertIn("input_tokens=10", err)
+
+    def test_images_are_passed_through(self):
+        images = [{"mediaType": "image/png", "base64": "AAAA"}]
+        self.run_main(["-"], json.dumps({"state": "s", "questions": QUESTIONS, "images": images}))
+        self.assertEqual(self.calls[0][2], images)
+
+    def test_bad_request_exits_2_without_calling_the_api(self):
+        bad = ["not json", "[]", json.dumps({"state": "s"}), json.dumps({"state": "s", "questions": {}}),
+               json.dumps({"state": "s", "questions": QUESTIONS, "model": "jev-latest"})]
+        for text in bad:
+            with self.subTest(text=text):
+                code, out, err = self.run_main(["-"], text)
+                self.assertEqual(code, 2)
+                self.assertEqual(out, "")
+                self.assertTrue(err.startswith("snap_client:"))
+        self.assertEqual(self.calls, [])
+
+    def test_api_error_exits_1_with_message_on_stderr(self):
+        def failing(*a, **kw):
+            raise SnapError(402, "payment_required", "no credits")
+
+        code, out, err = self.run_main(["-"], json.dumps({"state": "s", "questions": QUESTIONS}), failing)
+        self.assertEqual((code, out), (1, ""))
+        self.assertIn("402 payment_required", err)
+
+    def test_demo_sends_the_demo_request(self):
+        code, _, _ = self.run_main(["--demo"])
+        self.assertEqual(code, 0)
+        self.assertEqual(self.calls, [(snap_client.DEMO_STATE, snap_client.DEMO_QUESTIONS, None)])
+
+    def test_request_or_demo_is_required(self):
+        with self.assertRaises(SystemExit) as ctx, mock.patch("sys.stderr", io.StringIO()):
+            self.run_main([])
+        self.assertEqual(ctx.exception.code, 2)
+
+
 if __name__ == "__main__":
     unittest.main()

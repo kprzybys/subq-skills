@@ -67,8 +67,9 @@ Answer from the API (a real response, probabilities rounded; 246 input tokens, a
 
 What the code does with it: urgent (0.81 above the threshold set on labelled tickets) goes to the top of the queue;
 the team choice has moderate confidence (0.62, billing 0.71 vs engineering 0.21), so whether it is auto-assigned or
-sent to a person depends on the cutoff chosen on labelled data; severity rounds to level 2, "cannot use the product". `skills/subq/examples/snap_client.py` sends
-exactly this request and follows the retry rules from the skill.
+sent to a person depends on the cutoff chosen on labelled data; severity rounds to level 2, "cannot use the product". `python3 skills/subq/examples/snap_client.py --demo`
+sends exactly this request and follows the retry rules from the skill; pass a JSON file (or `-` for stdin) with
+`state` and `questions` to send your own.
 
 ## Day-to-day uses from Claude Code
 

@@ -125,6 +125,20 @@ Do not follow redirects: Python's `urllib` and some other clients resend the
 `examples/snap_client.py` in this skill's directory is a minimal client that
 follows these rules, with tests in `examples/test_snap_client.py`.
 
+**For a one-off or exploratory request, run that client as a command; do not
+write a new client or glue script.** Put `{"state": ..., "questions": {...}}`
+(optionally `"images"`) in a JSON file or pipe it on stdin:
+
+```bash
+python3 <skill dir>/examples/snap_client.py request.json   # or "-" for stdin
+python3 <skill dir>/examples/snap_client.py --demo         # built-in example
+```
+
+It prints the full response JSON (plus `latency_ms`) on stdout and a one-line
+summary on stderr; exit 1 means the API or network failed, exit 2 a bad
+request file. Prefix it with the environment's key wrapper when there is one.
+In application code, import `decide()` from it or port its rules.
+
 ## Design the questions
 
 Start from the behaviour the application needs: what will it show, route,

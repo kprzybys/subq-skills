@@ -1,8 +1,12 @@
 """Minimal client for the SubQ Decisions API (POST /v1/systemone), standard library only.
 
-Usage as a script (key from the environment, never from a file or argument):
-    export SUBQ_API_KEY=...   # or run through a secrets-manager wrapper
-    python3 snap_client.py            # sends the demo request and prints the answers
+Usage as a command (key from the environment, never from a file or argument; run it through a
+secrets-manager wrapper when one exists):
+    python3 snap_client.py request.json    # or "-" to read stdin
+    python3 snap_client.py --demo          # sends the built-in support-ticket request
+The request file holds {"state": ..., "questions": {...}} and optionally "images"; the model is fixed.
+The full JSON response goes to stdout with "latency_ms" added; a one-line summary goes to stderr.
+Exit codes: 0 answered, 1 the API or network failed (message on stderr), 2 bad usage or bad request file.
 
 Usage from code:
     from snap_client import decide
@@ -21,10 +25,12 @@ Tests: python3 -m unittest test_snap_client  (run in this directory)
 
 from __future__ import annotations
 
+import argparse
 import http.client
 import json
 import os
 import random
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -138,12 +144,57 @@ DEMO_QUESTIONS = {
 }
 
 
-if __name__ == "__main__":
+REQUEST_KEYS = {"state", "questions", "images"}
+
+
+def load_request(text: str) -> dict:
+    """Parse and check a command-line request: {"state", "questions"} plus optional "images"."""
+    try:
+        request = json.loads(text)
+    except ValueError as e:
+        raise ValueError(f"request is not valid JSON: {e}") from e
+    if not isinstance(request, dict):
+        raise ValueError("request must be a JSON object")
+    unknown = set(request) - REQUEST_KEYS
+    if unknown:
+        raise ValueError(f"unknown keys {sorted(unknown)}; allowed: {sorted(REQUEST_KEYS)} (the model is fixed)")
+    if "state" not in request or not isinstance(request.get("questions"), dict) or not request["questions"]:
+        raise ValueError('request needs "state" and a non-empty "questions" object')
+    return request
+
+
+def main(argv: list[str] | None = None, *, stdin=None, stdout=None, stderr=None, decide_fn=None) -> int:
+    stdin, stdout, stderr = stdin or sys.stdin, stdout or sys.stdout, stderr or sys.stderr
+    decide_fn = decide_fn or decide
+    parser = argparse.ArgumentParser(description="Send one SubQ Snap decision request and print the JSON response.")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("request", nargs="?", help='JSON file with "state" and "questions", or "-" for stdin')
+    group.add_argument("--demo", action="store_true", help="send the built-in support-ticket request")
+    args = parser.parse_args(argv)
+
+    if args.demo:
+        request = {"state": DEMO_STATE, "questions": DEMO_QUESTIONS}
+    else:
+        try:
+            text = stdin.read() if args.request == "-" else open(args.request, encoding="utf-8").read()
+            request = load_request(text)
+        except (OSError, ValueError) as e:
+            print(f"snap_client: {e}", file=stderr)
+            return 2
+
     t0 = time.perf_counter()
-    result = decide(DEMO_STATE, DEMO_QUESTIONS)
-    ms = (time.perf_counter() - t0) * 1000
-    a = result["answers"]
-    print(f"model={result['model']} input_tokens={result['usage']['input_tokens']} latency={ms:.0f} ms")
-    print(f"urgent   noul={a['urgent']['noul']:.2f}")
-    print(f"team     choice={a['team']['choice']} confidence={a['team']['confidence']:.2f}")
-    print(f"severity score={a['severity']['score']:.2f} confidence={a['severity']['confidence']:.2f}")
+    try:
+        result = decide_fn(request["state"], request["questions"], images=request.get("images"))
+    except SnapError as e:
+        print(f"snap_client: {e}", file=stderr)
+        return 1
+    result["latency_ms"] = round((time.perf_counter() - t0) * 1000)
+    json.dump(result, stdout, ensure_ascii=False, indent=2)
+    stdout.write("\n")
+    tokens = result.get("usage", {}).get("input_tokens")
+    print(f"model={result.get('model')} input_tokens={tokens} latency={result['latency_ms']} ms", file=stderr)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

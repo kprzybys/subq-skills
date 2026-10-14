@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+- Example client is now a command: `snap_client.py request.json|-` prints the response JSON, `--demo` sends the
+  built-in request, exit codes 0/1/2; the skill tells the agent to use it instead of writing glue code; 6 new tests.
 - Skill: Jev limits follow the reworded TypeSafe models page (per-request and per-question context, no separate
   limit on the number of questions); docs snapshot refreshed.
 - Evals: `jev-to-snap` facts checked by regex graders instead of one long llm rubric (the haiku judge rejected
