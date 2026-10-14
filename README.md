@@ -133,7 +133,7 @@ Claude Code then reads the files from disk.
   `ruff check --select E,F,W,I,B,UP,N --line-length 120 skills scripts evals/history`. CI runs both plus
   `claude plugin validate .`.
 - **Evals**: `evals/` holds `claude plugin eval` cases (ticket triage, Jev → Snap migration, question design).
-  Each run costs about $1.2 per run per arm:
+  One run costs about $1.2 per arm:
 
   ```bash
   claude plugin eval . --trust-plugin --allow-tools Write WebFetch --no-publish -j 3
