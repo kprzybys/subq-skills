@@ -3,7 +3,8 @@ import json
 import sys
 
 d = json.load(open(sys.argv[1], encoding="utf-8"))
-print(f"duration {d['durationSeconds']} s, cost ${d['costUsd']:.2f}, partial={d['partial']}, aggregates={d['aggregates']}")
+print(f"duration {d['durationSeconds']} s, cost ${d['costUsd']:.2f}, partial={d['partial']}")
+print(f"aggregates={d['aggregates']}")
 for c in d["cases"]:
     print(f"\n{c['name']}: {c['aggregates']}")
     for arm, a in c["arms"].items():
