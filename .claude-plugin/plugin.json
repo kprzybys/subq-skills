@@ -1,6 +1,6 @@
 {
   "name": "subq",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Agent skill for building with the SubQ Decisions API (SubQ Snap, model subq-snap-preview).",
   "author": {
     "name": "Karol Przybyszewski",

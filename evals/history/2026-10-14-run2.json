@@ -1,0 +1,613 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.299",
+  "startedAt": "2026-10-14T17:12:21.761Z",
+  "durationSeconds": 192,
+  "costUsd": 1.3017006,
+  "partial": false,
+  "suite": {
+    "root": "/home/karol/subq-skills",
+    "ablation": "with-without",
+    "threshold": 1,
+    "concurrency": 3,
+    "plugins": [
+      {
+        "name": "subq",
+        "version": "0.1.1",
+        "path": "/home/karol/subq-skills"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "jev-to-snap",
+      "dir": "evals/jev-to-snap",
+      "source": "prose",
+      "promptMarkdown": "This Python snippet calls TypeSafe Jev. I want to run the same decision on SubQ Snap instead. Rewrite the snippet for Snap and tell me, in a short list, what else changes between the two (limits, price, errors, retries). Only state things you can back with the vendors' docs; say when something is unknown.\n\n```python\nimport json, os, urllib.request\n\nreq = urllib.request.Request(\n    \"https://api.typesafe.ai/v1/systemone\",\n    data=json.dumps({\n        \"model\": \"jev-latest\",\n        \"state\": {\"review\": \"The blender died after two uses and support never replied.\"},\n        \"questions\": {\n            \"refund\": {\"type\": \"noul\", \"instructions\": \"Does the customer ask for a refund or replacement?\"},\n            \"tone\": {\"type\": \"score\", \"instructions\": \"How angry is `review`?\", \"criteria\": [\"Calm\", \"Annoyed\", \"Furious\"]},\n        },\n    }).encode(),\n    headers={\"Authorization\": f\"Bearer {os.environ['TYPESAFE_API_KEY']}\", \"Content-Type\": \"application/json\"},\n)\nprint(json.load(urllib.request.urlopen(req, timeout=30))[\"answers\"])\n```",
+      "runsPerCase": 1,
+      "timeoutSeconds": 600,
+      "maxTurns": 15,
+      "graders": [
+        {
+          "name": "differences",
+          "type": "llm",
+          "weight": 2,
+          "graderMarkdown": "Grade the final answer about moving a decision request from TypeSafe Jev to SubQ Snap.\n\nPASS only if ALL hold:\n1. The rewritten code keeps the same request shape (`model`, `state`, named `questions` with `type`/`instructions`/`criteria`) and changes only the URL to https://api.subq.ai/v1/systemone, the model to `subq-snap-preview` and the key variable to `SUBQ_API_KEY`.\n2. The list of differences mentions, with the right direction: Snap's larger context window (384K tokens, versus Jev's 64k per request / 32k for state plus longest question), Snap's price of $0.05 per 1M input tokens versus Jev's $0.042 (output free for both), Snap's error body as a `detail` object, and that Snap retries 429 and 5xx while Jev documents 429 and 529.\n3. No API key value appears, and no numbers are presented as facts that contradict the ones above (for example a different price or context size stated as certain).\n\nFAIL if the code shape is changed to an OpenAI-style chat request, if a made-up endpoint or model name is used, or if the price or context figures are wrong or missing.",
+          "config": {
+            "criteria": "Grade the final answer about moving a decision request from TypeSafe Jev to SubQ Snap.\n\nPASS only if ALL hold:\n1. The rewritten code keeps the same request shape (`model`, `state`, named `questions` with `type`/`instructions`/`criteria`) and changes only the URL to https://api.subq.ai/v1/systemone, the model to `subq-snap-preview` and the key variable to `SUBQ_API_KEY`.\n2. The list of differences mentions, with the right direction: Snap's larger context window (384K tokens, versus Jev's 64k per request / 32k for state plus longest question), Snap's price of $0.05 per 1M input tokens versus Jev's $0.042 (output free for both), Snap's error body as a `detail` object, and that Snap retries 429 and 5xx while Jev documents 429 and 529.\n3. No API key value appears, and no numbers are presented as facts that contradict the ones above (for example a different price or context size stated as certain).\n\nFAIL if the code shape is changed to an OpenAI-style chat request, if a made-up endpoint or model name is used, or if the price or context figures are wrong or missing.",
+            "focus": "last_message"
+          }
+        },
+        {
+          "name": "endpoint",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "last_message",
+            "pattern": "api\\.subq\\.ai/v1/systemone",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "key",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "last_message",
+            "pattern": "SUBQ_API_KEY",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "model",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "last_message",
+            "pattern": "subq-snap-preview",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "skill-fired",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?subq\""
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 10,
+            "costUsd": 0.2083485,
+            "judgeCostUsd": 0.002062,
+            "durationSeconds": 56,
+            "startedAt": "2026-10-14T17:12:21.787Z",
+            "error": null,
+            "tracePath": "/tmp/claude-eval-8mXbe8/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "differences",
+                "passed": true,
+                "weight": 2,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "Here's the snippet rewritten for Snap. Snap uses the same `/v1/systemone` request and response format as Jev, so only the URL, model ID and key variable change:\n\n```python\nimport json, os, urllib.request\n\nreq = urllib.request.Request(\n    \"https://api.subq.ai/v1/systemone\",\n    data=json.dumps({\n        \"model\": \"subq-snap-preview\",\n        \"state\": {\"review\": \"The blender died after two uses and support never replied.\"},\n        \"questions\": {\n            \"refund\": {\"type\": \"noul\", \"instructions\": \"Does the customer ask for a refund or replacement?\"},\n            \"tone\": {\"type\": \"score\", \"instructions\": \"How angry is `review`?\", \"criteria\": [\"Calm\", \"Annoyed\", \"Furious\"]},\n        },\n    }).encode(),\n    headers={\"Authorization\": f\"Bearer {os.environ['SUBQ_API_KEY']}\", \"Content-Type\": \"application/json\"},\n)\nprint(json.load(urllib.request.urlopen(req, timeout=30))[\"answers\"])\n```\n\nThe answers have the same shape on both. `refund.noul` is the probability of \"yes\", from 0 to 1. `tone` has `score`, `legend`, `probabilities` and `confidence`.\n\n**What else changes** (from docs.subq.ai and docs.typesafe.ai, checked today):\n\n- **Model status:** Snap is in public preview. Jev's `jev-latest` points to `jev-1.13.0`, which TypeSafe calls \"the most recent stable release\".\n- **Context limit:** Snap allows 384K tokens per request; requests over or close to that fail with `400`. Jev allows 64k per request, and the state plus any single question must fit in 32k.\n- **Questions per request:** Snap allows 1–16. **Jev's limit isn't stated** in the pages I checked. Both allow 2–255 options for choice and 2–10 levels for score.\n- **Images:** Snap accepts up to 4 images (PNG, JPEG or WebP, 4 MiB each, 8 MiB total). I didn't find anything about images in Jev's docs.\n- **Price:** Snap costs $0.05 per 1M input tokens. Jev costs $0.042 per 1M. Both charge only for input; output tokens are free.\n- **Rate limits:** **Snap's aren't published**; the docs only say you'll get a `429` when you hit one. Jev's are 100K tokens/s and 80 requests/s, and TypeSafe says these are \"changing dynamically\".\n- **Error body:** Snap returns `{\"detail\": {\"error_type\": ..., \"message\": ...}}`. Jev's docs only say \"a JSON body describing the problem\", and a `422` names the field that failed. **Jev's exact error format isn't documented.**\n- **Status codes:**\n  - Snap: `400` (too many tokens or rejected), `401`, `402` (no credits), `403` (key can't use this model), `422`, `429`, and `5xx` (`503` means temporarily unavailable).\n  - Jev: `401`, `422`, `429`, `529` (overloaded).\n- **Retries:** On Snap, retry `429` and `5xx` with backoff, and fix `400`/`422` before sending again. Jev's API docs say to retry `429` and `529` with exponential backoff. Its Python SDK retries 408, 429 and all 5xx codes by default, up to 2 retries starting at a 0.5 s delay. **SubQ doesn't publish an SDK retry policy.** Your snippet doesn't retry on either service.\n\nOne thing that isn't in the vendor docs: the SubQ skill notes that `urllib` follows redirects and may resend the `Authorization` header with them. If that matters to you, use an opener that doesn't follow redirects."
+              },
+              {
+                "name": "endpoint",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched api\\.subq\\.ai/v1/systemone",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "key",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched SUBQ_API_KEY",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "model",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched subq-snap-preview",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 15,
+            "costUsd": 0.26146739999999996,
+            "judgeCostUsd": 0.0014764,
+            "durationSeconds": 89,
+            "startedAt": "2026-10-14T17:12:21.788Z",
+            "error": null,
+            "tracePath": "/tmp/claude-eval-4yq3Z2/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "differences",
+                "passed": true,
+                "weight": 2,
+                "explanation": "judge votes: FAIL PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  true,
+                  true
+                ],
+                "evidence": "Here's the Snap version. Snap's Decisions API takes the same request body and returns `answers` the same way, so only the URL, model and key change:\n\n```python\nimport json, os, urllib.request\n\nreq = urllib.request.Request(\n    \"https://api.subq.ai/v1/systemone\",\n    data=json.dumps({\n        \"model\": \"subq-snap-preview\",\n        \"state\": {\"review\": \"The blender died after two uses and support never replied.\"},\n        \"questions\": {\n            \"refund\": {\"type\": \"noul\", \"instructions\": \"Does the customer ask for a refund or replacement?\"},\n            \"tone\": {\"type\": \"score\", \"instructions\": \"How angry is `review`?\", \"criteria\": [\"Calm\", \"Annoyed\", \"Furious\"]},\n        },\n    }).encode(),\n    headers={\"Authorization\": f\"Bearer {os.environ['SUBQ_API_KEY']}\", \"Content-Type\": \"application/json\"},\n)\nprint(json.load(urllib.request.urlopen(req, timeout=60))[\"answers\"])\n```\n\nI haven't run either snippet. I checked this one against Snap's Decisions API page, quickstart and Models page. The timeout is 60s because that's what Snap's own Python example uses; neither vendor documents a server-side timeout.\n\n**What else changes**\n\n- **Model status:** Snap is `subq-snap-preview`, a public preview. Snap's docs list no aliases like `jev-latest`, which currently points to `jev-1.13.0`.\n- **Context size:**\n  - Jev: 64k tokens per request, and 32k for the state plus the longest single question.\n  - Snap: one 384K-token (393,216) window. Requests that go over it, or come close to it, fail with `400`.\n- **Other request limits:**\n  - Snap allows 1–16 questions per request, question names up to 100 characters, and a 13 MiB body.\n  - Jev's docs don't state these limits.\n  - Both allow up to 255 choice options and 2–10 score levels.\n- **Inputs:** Snap accepts up to 4 images (PNG, JPEG or WebP, base64). Jev is text only.\n- **Rate limits:**\n  - Jev: 100K tokens/s and 80 requests/s. The docs say these adjust dynamically and may change without notice.\n  - Snap: no figures are published. The docs only say `429` means you've hit the limit.\n- **Price:** Both charge for input tokens only, and output is free.\n  - Jev: $0.042 per 1M tokens.\n  - Snap: $0.05 per 1M tokens. Snap's homepage also says the first 10,000 users get 100M free tokens.\n  - The two models count tokens differently, so the real cost per request can't be compared.\n- **Errors:**\n  - Snap returns errors as `{\"detail\": {\"error_type\", \"message\"}}`. Its codes are `400` (too many tokens, or the model rejected the request), `401`, `402` (out of credits), `403` (key can't use this model), `422`, `429`, and `5xx` (`503` means temporarily unavailable).\n  - Jev documents `401`, `422`, `429` and `529` (overloaded). Its docs don't describe an error body format. It has no `402` or `403`.\n- **Retries:**\n  - Snap: retry `429` and `5xx` with backoff, and never retry `400` or `422` without fixing the request. It documents no attempt counts, backoff values or `Retry-After` behaviour.\n  - Jev: its SDKs retry `408`, `429` and all `5xx` automatically. That's 2 retries, backoff starting at 0.5s and doubling up to 5s, and they honour `Retry-After`.\n  - Neither snippet retries anything, because plain `urllib` doesn't.\n- **Answer values:** Snap describes its `score` as probability-weighted. Jev's docs don't say how its `score` is computed, so the two numbers may not mean the same thing.\n\nSources: docs.typesafe.ai (`api.md`, `models.md`, `sdk/python/api/retries.md`), docs.subq.ai (Decisions API, Models, Authentication), and subq.ai (homepage)."
+              },
+              {
+                "name": "endpoint",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched api\\.subq\\.ai/v1/systemone",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "key",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched SUBQ_API_KEY",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "model",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched subq-snap-preview",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1,
+        "scoreWithout": 1,
+        "passRateWithout": 1,
+        "delta": 0
+      }
+    },
+    {
+      "name": "question-design",
+      "dir": "evals/question-design",
+      "source": "prose",
+      "promptMarkdown": "I'm adding SubQ Snap to a product-review pipeline. For each review I need to know: (1) is it spam, (2) which of our 6 categories it belongs to (kitchen, audio, outdoor, toys, office, other), (3) how angry the customer is on a 1–5 scale. Separately, for each search query I need the single best-matching item among 40 catalogue items (I have their titles and descriptions). Which SubQ question types should I use for each, how many requests does that take, and how do I decide when to trust the answer? Draft the questions as JSON.",
+      "runsPerCase": 1,
+      "timeoutSeconds": 600,
+      "maxTurns": 15,
+      "graders": [
+        {
+          "name": "design",
+          "type": "llm",
+          "weight": 2,
+          "graderMarkdown": "Grade the final answer about designing SubQ Snap questions.\n\nPASS only if ALL hold:\n1. Spam → a `noul` question; category → a `choice` question with the 6 named options (including `other`); anger → a `score` question with 5 ordered levels described concretely (not just numbers).\n2. The three review questions are sent together in ONE request over the same review state (they are independent), and the catalogue match is ONE `choice` question whose options are the 40 items, in a separate request per query. Proposing 40 yes/no questions for the catalogue match, or one request per review question, is a FAIL.\n3. Each question's meaning is in `instructions` and `criteria`, not only in the question name.\n4. Trust is decided by thresholds set on the user's own labelled data (noul probability, `confidence`), with uncertain cases sent to a person; the answer does not present a fixed threshold as universally correct.\n\nFAIL otherwise.",
+          "config": {
+            "criteria": "Grade the final answer about designing SubQ Snap questions.\n\nPASS only if ALL hold:\n1. Spam → a `noul` question; category → a `choice` question with the 6 named options (including `other`); anger → a `score` question with 5 ordered levels described concretely (not just numbers).\n2. The three review questions are sent together in ONE request over the same review state (they are independent), and the catalogue match is ONE `choice` question whose options are the 40 items, in a separate request per query. Proposing 40 yes/no questions for the catalogue match, or one request per review question, is a FAIL.\n3. Each question's meaning is in `instructions` and `criteria`, not only in the question name.\n4. Trust is decided by thresholds set on the user's own labelled data (noul probability, `confidence`), with uncertain cases sent to a person; the answer does not present a fixed threshold as universally correct.\n\nFAIL otherwise.",
+            "focus": "last_message"
+          }
+        },
+        {
+          "name": "skill-fired",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?subq\""
+          }
+        },
+        {
+          "name": "types-json",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "last_message",
+            "pattern": "(?=[\\s\\S]*\"type\":\\s*\"noul\")(?=[\\s\\S]*\"type\":\\s*\"choice\")(?=[\\s\\S]*\"type\":\\s*\"score\")",
+            "flags": "",
+            "match": "contains"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 5,
+            "costUsd": 0.17792190000000002,
+            "judgeCostUsd": 0.0021915000000000003,
+            "durationSeconds": 58,
+            "startedAt": "2026-10-14T17:12:21.788Z",
+            "error": null,
+            "tracePath": "/tmp/claude-eval-1EGT9D/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "design",
+                "passed": true,
+                "weight": 2,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "For each review, send one request with three questions. For each search query, send one request with a single 40-option `choice` question. I checked this against the live Decisions API docs.\n\n## 1. Reviews: one request per review, three questions\n\n| Need | Type | Why |\n|---|---|---|\n| Spam? | `noul` | Yes or no. You get back the probability that it is spam. |\n| Category | `choice` | Exactly one of 6 categories. You get a probability per category plus a `confidence`. |\n| Anger 1–5 | `score` | 5 ordered levels. You get a weighted `score` (it can land between levels, e.g. 3.4) plus the probability of each level. |\n\n```json\n{\n  \"model\": \"subq-snap-preview\",\n  \"state\": {\n    \"review_title\": \"Broke after two days\",\n    \"review_text\": \"The blender lid cracked on day two and support never replied. Waste of money.\",\n    \"star_rating\": 1\n  },\n  \"questions\": {\n    \"is_spam\": {\n      \"type\": \"noul\",\n      \"instructions\": \"Is this review spam rather than a genuine customer review of a product they used? Judge from review_title and review_text.\",\n      \"criteria\": {\n        \"true\": \"Advertising, links or promo codes, text unrelated to any product, gibberish, copy-pasted boilerplate, or obvious bot or incentivised text\",\n        \"false\": \"A real customer describing their own experience with a product, even if short, angry or badly written\"\n      }\n    },\n    \"category\": {\n      \"type\": \"choice\",\n      \"instructions\": \"Which product category is the reviewed product in? Judge from the product described in review_title and review_text.\",\n      \"criteria\": {\n        \"kitchen\": \"Cookware, small kitchen appliances, utensils, food storage, tableware\",\n        \"audio\": \"Headphones, earbuds, speakers, soundbars, microphones, audio cables and adapters\",\n        \"outdoor\": \"Camping, hiking, garden, grills, outdoor furniture, sports and travel gear\",\n        \"toys\": \"Toys, games, puzzles, children's play equipment\",\n        \"office\": \"Stationery, desk accessories, office furniture, printers and printing supplies\",\n        \"other\": \"The product fits none of the categories above, or the product cannot be identified\"\n      }\n    },\n    \"anger\": {\n      \"type\": \"score\",\n      \"instructions\": \"How angry is the customer who wrote review_text? Rate the emotion expressed, not how bad the product is.\",\n      \"criteria\": [\n        \"Not angry: positive or neutral, no complaint\",\n        \"Mildly disappointed: a minor complaint in a calm tone\",\n        \"Clearly annoyed: frustration about a real problem, but measured\",\n        \"Very angry: strong negative language, feels let down or cheated, asks for a refund or warns other buyers\",\n        \"Furious: hostile or abusive tone, accusations of fraud, threats of chargebacks, legal action or public escalation\"\n      ]\n    }\n  }\n}\n```\n\n**Notes:**\n- Each level of the anger scale describes a situation that makes sense on its own, ordered from lowest to highest.\n- Treat the three answers as independent. The category question doesn't know whether the model thought the review was spam, so your code should check spam first, e.g. `if spam: drop; else: use category and anger`.\n- Don't pack several reviews into one request. Keeping one review per state stops one review from influencing the answers about another.\n\n## 2. Search: one request per query, one `choice` with 40 options\n\nUse one `choice` question with the 40 items as its options. Don't send 40 separate yes/no questions: a request takes at most 16 questions, and one choice makes the items compete directly. The limit is 2–255 options, so 40 is fine. Name each option by its catalogue ID and put the title plus description in the option text:\n\n```json\n{\n  \"model\": \"subq-snap-preview\",\n  \"state\": { \"search_query\": \"quiet blender for smoothies\" },\n  \"questions\": {\n    \"best_item\": {\n      \"type\": \"choice\",\n      \"instructions\": \"Which catalogue item best matches what the user is looking for in search_query? Pick the single item a shopper would most want to see first.\",\n      \"criteria\": {\n        \"sku_0001\": \"ProBlend 900 – 900W countertop blender with noise-dampening shield, ideal for smoothies and ice\",\n        \"sku_0002\": \"TravelMix – USB-rechargeable personal blender, 350 ml bottle\",\n        \"sku_0003\": \"ChefPro Stand Mixer – 5 L bowl, 10 speeds, dough hook and whisk\",\n        \"...\": \"... one entry per catalogue item, 40 in total ...\",\n        \"no_match\": \"None of the catalogue items matches what the user is looking for\"\n      }\n    }\n  }\n}\n```\n\n**Notes:**\n- I added a `no_match` option because without it the model must pick an item even for queries like \"gift card balance\". Remove it if every query is guaranteed to match something.\n- The 40 option texts are the same in every request, so build them once in code and reuse them.\n- Cost is small. 40 items at about 50–80 tokens each is roughly 2–4K input tokens per query, which works out to about $0.0001–0.0002 per query at $0.05 per 1M tokens. Measure the real figure from `usage.input_tokens`.\n\n## How many requests\n\n- **Reviews:** 1 request per review, carrying all 3 questions. 10,000 reviews means 10,000 requests.\n- **Search:** 1 request per query.\n- **Total:** reviews + queries. The two tasks have different states, so they can't share a request.\n\nYou only need a second request when one answer decides what you ask next. For example, after picking an item you might ask a yes/no question like \"does this item actually satisfy the query?\" with only that item in the state.\n\n## When to trust the answer\n\nSet the cutoffs from your own labelled data, not from guesses. Label a few hundred reviews and queries, run them through, and choose a cutoff for each question separately. The docs' examples start at 0.6 for a choice's `confidence` and 0.5 for a yes/no probability, but treat those only as starting points.\n\n- **`is_spam`:** use two thresholds with a band in between for people to review. For example: ≥ 0.85 counts as spam, ≤ 0.15 counts as genuine, and anything in between goes to a person. A value near 0.5 means the model is unsure, not \"somewhat spam.\" Set the upper cutoff from what a wrongly deleted real review costs you.\n- **`category`:** accept when `confidence` is above your cutoff. Below it, or when the top two `probabilities` are close, send the review to a person or file it as `other`.\n- **`anger`:** use the continuous `score` for sorting and alerts, e.g. escalate when `score ≥ 3.8`. If you need a whole number from 1–5, round it, but check `probabilities`. A split such as 45% \"mildly disappointed\" and 45% \"furious\" means the review is ambiguous, not that the customer is \"annoyed.\"\n- **`best_item`:**\n  - Accept when `confidence` is high and the top item clearly beats the runner-up.\n  - When `confidence` is low or the top two are close, show the top 3 items by probability instead of one.\n  - When `no_match` wins, fall back to keyword search.\n\n**For all four questions:**\n- Store the raw probabilities so you can change thresholds later without calling the API again.\n- Answers can differ between runs. Measure accuracy on a sample before you automate anything, and re-check now and then, since the model is in public preview and may change.\n\nFor the client: read the key from `SUBQ_API_KEY`, retry 429 and 5xx errors with backoff, and don't retry 400 or 422 (fix the request instead). Before sending real review text, check SubQ's data-retention page, since it may contain customer personal data."
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "types-json",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched (?=[\\s\\S]*\"type\":\\s*\"noul\")(?=[\\s\\S]*\"type\":\\s*\"choice\")(?=[\\s\\S]*\"type\":\\s*\"score\")",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 3,
+            "costUsd": 0.1005111,
+            "judgeCostUsd": 0.0019879000000000003,
+            "durationSeconds": 36,
+            "startedAt": "2026-10-14T17:13:18.151Z",
+            "error": null,
+            "tracePath": "/tmp/claude-eval-TDtbWd/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "design",
+                "passed": false,
+                "weight": 2,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "I couldn't find any SubQ Snap documentation here: the working directory is empty and nothing under home mentions it. I also don't know its API, so I won't guess its exact question-type names, option limits or response fields. Below is a design that should fit any question-and-answer service like this. The JSON uses placeholder field names that you'll need to map to SubQ's real schema. If you send me the docs or a URL, I'll make it exact.\n\n## Which question type for each task\n\n| Task | Question type | Why |\n|---|---|---|\n| Spam | **Yes/no** | It has two outcomes, and you'll want to set the cutoff yourself based on what each kind of mistake costs. |\n| Category | **Pick one from a list** (6 options) | The categories don't overlap, and \"other\" catches anything that doesn't fit. |\n| Anger | **1–5 rating** where the order matters | Being off by one should count as less wrong than being off by four. Don't treat the five levels as unrelated labels. |\n| Search match | **Pick one from a list**, with a short list first if needed | 40 options is a lot for one question. Accuracy and position bias both tend to get worse with long lists, and SubQ may cap the number of options. |\n\n## How many requests\n\n**Reviews: 1–3 per review.** Ask the spam question first. If the answer is a confident \"spam\", skip the other two. If SubQ lets you put several questions in one request, it's 1 request per review.\n\n**Search: depends on SubQ's option limit.**\n- **Recommended: 1 request.** Use cheap keyword (BM25) or embedding search to narrow the 40 items to the top 8–10. Then ask SubQ to pick one from those, and include a \"none of these\" option.\n- If SubQ accepts all 40 options in one question, that also works in 1 request, but check it for position bias (see below).\n- If you can't narrow the list first, run a knockout round: 5 groups of 8, then a final between the 5 winners. That's **6 requests** per query.\n\n## When to trust the answer\n\nCalibrate on roughly 200 reviews and 100 queries that you've labelled by hand, then set a cutoff for each task:\n\n- **Spam:** if SubQ returns a probability, choose the cutoff by what each mistake costs you. For example, auto-drop only above 0.9, and send 0.5–0.9 to a person.\n- **Category:** require a gap between the top two options (for example, at least 0.3). Small gaps tend to come from real ambiguity, like a camping speaker that is both \"audio\" and \"outdoor\". Send those to a person or allow two labels.\n- **Anger:** if SubQ gives a score for each level, use the weighted average, and trust it when most of the weight sits on neighbouring levels. Measure accuracy as within ±1 of your label, not exact matches.\n- **Search:** require a clear lead over the second-best item. Also run each question again with the options shuffled: if the winner changes, don't trust it. Treat \"none of these\" as a real answer, not an error.\n- **If SubQ returns no confidence score:** ask each question 3 times (shuffling options where relevant) and trust only answers that agree. That triples the request count.\n\n## Draft questions (placeholder schema)\n\n```json\n{\n  \"review_questions\": [\n    {\n      \"id\": \"is_spam\",\n      \"type\": \"binary\",\n      \"prompt\": \"Is this product review spam (advertising, links, off-topic, gibberish, or not about a product the reviewer used)?\",\n      \"options\": [\"yes\", \"no\"],\n      \"input\": \"{{review_text}}\"\n    },\n    {\n      \"id\": \"category\",\n      \"type\": \"single_choice\",\n      \"prompt\": \"Which product category is this review about?\",\n      \"options\": [\"kitchen\", \"audio\", \"outdoor\", \"toys\", \"office\", \"other\"],\n      \"input\": \"{{review_text}}\",\n      \"condition\": { \"is_spam\": \"no\" }\n    },\n    {\n      \"id\": \"anger\",\n      \"type\": \"ordinal_scale\",\n      \"prompt\": \"How angry is the customer?\",\n      \"scale\": {\n        \"min\": 1, \"max\": 5,\n        \"labels\": {\n          \"1\": \"Not angry (positive or neutral)\",\n          \"2\": \"Mildly disappointed\",\n          \"3\": \"Clearly frustrated\",\n          \"4\": \"Very angry\",\n          \"5\": \"Furious (threats, demands, all caps, abuse)\"\n        }\n      },\n      \"input\": \"{{review_text}}\",\n      \"condition\": { \"is_spam\": \"no\" }\n    }\n  ],\n  \"search_question\": {\n    \"id\": \"best_match\",\n    \"type\": \"single_choice\",\n    \"prompt\": \"Which catalogue item best matches this search query? Choose 'none' if no item is a reasonable match.\",\n    \"input\": \"{{query}}\",\n    \"options\": [\n      { \"id\": \"{{item_id}}\", \"label\": \"{{title}}\", \"description\": \"{{description}}\" },\n      \"...top 8-10 shortlisted items, in shuffled order...\",\n      { \"id\": \"none\", \"label\": \"None of these\" }\n    ]\n  }\n}\n```\n\nFields you'll probably need to rename once we have SubQ's schema: `type`, `condition` (whether SubQ can skip questions based on an earlier answer; if not, do it in your own code), and `options` with descriptions attached."
+              },
+              {
+                "name": "types-json",
+                "passed": false,
+                "weight": 1,
+                "explanation": "pattern not found in last_message",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1,
+        "scoreWithout": 0,
+        "passRateWithout": 0,
+        "delta": 1
+      }
+    },
+    {
+      "name": "triage-tickets",
+      "dir": "evals/triage-tickets",
+      "source": "prose",
+      "promptMarkdown": "We have a queue of customer support tickets (free text, English). Using SubQ's Snap decision model (Subquadratic, api.subq.ai), write a small Python script `triage.py` in the current directory that for each ticket decides (a) whether it is urgent, (b) which team should own it among billing, engineering, sales, other, and (c) how severe it is on a 3-level scale. Handle API errors and retries sensibly. Uncertain cases should be flagged for a human. You have no API key here, so do not run it; just write the script and tell me briefly what request format you used.",
+      "runsPerCase": 1,
+      "timeoutSeconds": 600,
+      "maxTurns": 20,
+      "graders": [
+        {
+          "name": "design",
+          "type": "llm",
+          "weight": 2,
+          "graderMarkdown": "You are grading a Python script that calls the SubQ Decisions API.\n\nPASS only if ALL of the following hold:\n1. For each ticket the script sends ONE request whose JSON body has `model`, `state` and a `questions` object containing three named questions, each with `type`, `instructions` and `criteria` (a noul for urgency, a choice with options billing/engineering/sales/other, a score with 3 ordered levels). Three separate requests per ticket, or a body built around fields like `input`, `question`, `choices` or `prompt`, is a FAIL.\n2. Answers are read from `answers.<question name>` (fields `noul`, `choice`, `probabilities`, `confidence`, `score`).\n3. Retries happen only for HTTP 429 and 5xx (and timeouts or connection errors), with a backoff; 400, 401, 402, 403 and 422 are not retried.\n4. Uncertain results (for example a noul near 0.5 or low `confidence`) are flagged for human review.\n\nFAIL if any item is missing or if the script invents a different endpoint, model name or request shape.",
+          "config": {
+            "criteria": "You are grading a Python script that calls the SubQ Decisions API.\n\nPASS only if ALL of the following hold:\n1. For each ticket the script sends ONE request whose JSON body has `model`, `state` and a `questions` object containing three named questions, each with `type`, `instructions` and `criteria` (a noul for urgency, a choice with options billing/engineering/sales/other, a score with 3 ordered levels). Three separate requests per ticket, or a body built around fields like `input`, `question`, `choices` or `prompt`, is a FAIL.\n2. Answers are read from `answers.<question name>` (fields `noul`, `choice`, `probabilities`, `confidence`, `score`).\n3. Retries happen only for HTTP 429 and 5xx (and timeouts or connection errors), with a backoff; 400, 401, 402, 403 and 422 are not retried.\n4. Uncertain results (for example a noul near 0.5 or low `confidence`) are flagged for human review.\n\nFAIL if any item is missing or if the script invents a different endpoint, model name or request shape.",
+            "focus": {
+              "source": "file",
+              "path": "triage.py"
+            }
+          }
+        },
+        {
+          "name": "endpoint",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": {
+              "source": "file",
+              "path": "triage.py"
+            },
+            "pattern": "api\\.subq\\.ai/v1/systemone",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "key-from-env",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": {
+              "source": "file",
+              "path": "triage.py"
+            },
+            "pattern": "SUBQ_API_KEY",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "model",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": {
+              "source": "file",
+              "path": "triage.py"
+            },
+            "pattern": "subq-snap-preview",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "no-literal-key",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": {
+              "source": "file",
+              "path": "triage.py"
+            },
+            "pattern": "Bearer\\s+[A-Za-z0-9_.\\-]{12,}",
+            "flags": "",
+            "match": "not_contains",
+            "arm": "both"
+          }
+        },
+        {
+          "name": "question-types",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": {
+              "source": "file",
+              "path": "triage.py"
+            },
+            "pattern": "(?=[\\s\\S]*[\"']noul[\"'])(?=[\\s\\S]*[\"']choice[\"'])(?=[\\s\\S]*[\"']score[\"'])",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "skill-fired",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?subq\""
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 7,
+            "costUsd": 0.2867132,
+            "judgeCostUsd": 0.0023934000000000004,
+            "durationSeconds": 75,
+            "startedAt": "2026-10-14T17:13:19.966Z",
+            "error": null,
+            "tracePath": "/tmp/claude-eval-6OfRDM/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "design",
+                "passed": true,
+                "weight": 2,
+                "explanation": "judge votes: PASS PASS PASS — note: long file (10598 chars); llm judges are noisy on long inputs, prefer a regex grader for large artifacts",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "\"\"\"Triage customer support tickets with SubQ Snap (subq-snap-preview) via the Decisions API.\n\nFor each ticket, one request asks three independent questions:\n  urgent   (noul)   - probability the ticket needs a response within the hour\n  team     (choice) - billing / engineering / sales / other\n  severity (score)  - 3 ordered levels: low / medium / high\nUncertain answers are flagged with needs_human=true and the reasons.\n\nInput:  a .jsonl file with one {\"id\": ..., \"text\": ...} object per line,\n        or a plain-text file with one ticket per line (ids are line numbers).\nOutput: one JSON object per ticket on stdout (or --out FILE), including raw probabilities\n        so thresholds can be retuned without calling the API again.\n\nUsage:\n    export SUBQ_API_KEY=...        # never put the key in this file or on the command line\n    python3 triage.py tickets.jsonl --out triaged.jsonl\n\nThe thresholds below are placeholders. Calibrate them on tickets you have already labelled.\nContract: https://docs.subq.ai/markdown/endpoints/decisions-api.md\n\"\"\"\n\nfrom __future__ import annotations\n\nimport argparse\nimport http.client\nimport json\nimport os\nimport random\nimport sys\nimport time\nimport urllib.error\nimport urllib.request\n\nURL = \"https://api.subq.ai/v1/systemone\"\nMODEL = \"subq-snap-preview\"\n\n# Placeholder thresholds; tune per question on labelled tickets.\nURGENT_YES = 0.70  # p(urgent) >= this -> urgent\nURGENT_NO = 0.30  # p(urgent) <= this -> not urgent; in between -> human\nMIN_TEAM_CONFIDENCE = 0.60\nMIN_SEVERITY_CONFIDENCE = 0.50\nMAX_TICKET_CHARS = 20_000  # tickets are short; trimming keeps cost and latency down\n\nSEVERITY_LEVELS = [\"low\", \"medium\", \"high\"]\n\nQUESTIONS = {\n    \"urgent\": {\n        \"type\": \"noul\",\n        \"instructions\": \"Read the customer support ticket in the state. Does it need a response within the hour?\",\n        \"criteria\": {\n            \"true\": \"Outage, data loss, security incident, account lockout or a blocked payment affecting the customer now\",\n            \"false\": \"Questions, feature requests, minor bugs or anything that can wait until the next business day\",\n        },\n    },\n    \"team\": {\n        \"type\": \"choice\",\n        \"instructions\": \"Read the customer support ticket in the state. Which team should own it?\",\n        \"criteria\": {\n            \"billing\": \"Charges, invoices, refunds, payment methods, failed or duplicate payments\",\n            \"engineering\": \"Bugs, crashes, errors, outages, performance, integrations or API problems\",\n            \"sales\": \"Pricing questions, plans, upgrades, quotes, new purchases or contract terms\",\n            \"other\": None,\n        },\n    },\n    \"severity\": {\n        \"type\": \"score\",\n        \"instructions\": \"Read the customer support ticket in the state. How severely is the customer affected?\",\n        \"criteria\": [\n            \"Low: a question, request or cosmetic issue; the customer can work normally\",\n            \"Medium: something is broken or wrong but there is a workaround or limited impact\",\n            \"High: the customer cannot use the product, is losing money or data, or security is at risk\",\n        ],\n    },\n}\n\n\nclass SnapError(Exception):\n    def __init__(self, status: int | None, error_type: str, message: str) -> None:\n        super().__init__(f\"{status} {error_type}: {message}\")\n        self.status = status\n        self.error_type = error_type\n\n\nclass _NoRedirect(urllib.request.HTTPRedirectHandler):\n    # urllib would resend the Authorization header to a redirect target; refuse instead.\n    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001\n        return None\n\n\n_OPENER = urllib.request.build_opener(_NoRedirect)\n\n\ndef _error_detail(e: urllib.error.HTTPError) -> dict:\n    try:\n        payload = json.load(e)\n    except ValueError:\n        return {}\n    detail = payload.get(\"detail\") if isinstance(payload, dict) else None\n    return detail if isinstance(detail, dict) else {\"message\": str(payload)[:200]}\n\n\ndef decide(key: str, state, questions: dict, *, attempts: int = 5, timeout_s: float = 60.0) -> dict:\n    \"\"\"One Decisions request with bounded retries on 429/5xx/network errors (exponential backoff, full jitter).\"\"\"\n    data = json.dumps({\"model\": MODEL, \"state\": state, \"questions\": questions}).encode()\n    headers = {\"Authorization\": f\"Bearer {key}\", \"Content-Type\": \"application/json\"}\n    for attempt in range(attempts):\n        last = attempt == attempts - 1\n        try:\n            req = urllib.request.Request(URL, data=data, headers=headers, method=\"POST\")\n            with _OPENER.open(req, timeout=timeout_s) as resp:\n                return json.load(resp)\n        except urllib.error.HTTPError as e:\n            detail = _error_detail(e)\n            if not (e.code == 429 or e.code >= 500) or last:\n                raise SnapError(e.code, detail.get(\"error_type\", \"http_error\"), detail.get(\"message\", \"\")) from e\n        except (OSError, http.client.HTTPException, ValueError) as e:\n            # Timeouts, resets, truncated/invalid bodies: outcome unknown. Retrying is safe (no side effects).\n            if last:\n                raise SnapError(None, \"network\", f\"{type(e).__name__}: {e}\") from e\n        time.sleep(random.uniform(0, min(30.0, 1.0 * 2**attempt)))\n    raise SnapError(None, \"internal\", \"retry loop ended without a result\")\n\n\ndef _argmax_level(probabilities, n_levels: int) -> int | None:\n    \"\"\"Index of the most likely score level; accepts a list or a dict keyed by level text/index.\"\"\"\n    if isinstance(probabilities, list) and len(probabilities) == n_levels:\n        return max(range(n_levels), key=lambda i: probabilities[i])\n    if isinstance(probabilities, dict):\n        criteria = QUESTIONS[\"severity\"][\"criteria\"]\n        scored = {}\n        for k, p in probabilities.items():\n            if k in criteria:\n                scored[criteria.index(k)] = p\n            elif str(k).isdigit() and int(k) < n_levels:\n                scored[int(k)] = p\n        if len(scored) == n_levels:\n            return max(scored, key=scored.get)\n    return None\n\n\ndef interpret(answers: dict) -> dict:\n    \"\"\"Turn raw answers into a triage decision plus reasons a human should look.\"\"\"\n    reasons = []\n\n    p_urgent = float(answers[\"urgent\"][\"noul\"])\n    if p_urgent >= URGENT_YES:\n        urgent = True\n    elif p_urgent <= URGENT_NO:\n        urgent = False\n    else:\n        urgent = None\n        reasons.append(f\"urgency unclear (p={p_urgent:.2f})\")\n\n    team_ans = answers[\"team\"]\n    team = team_ans[\"choice\"]\n    team_conf = float(team_ans[\"confidence\"])\n    if team_conf < MIN_TEAM_CONFIDENCE:\n        reasons.append(f\"team uncertain ({team}, confidence={team_conf:.2f})\")\n    if team == \"other\":\n        reasons.append(\"no matching team\")\n\n    sev_ans = answers[\"severity\"]\n    sev_conf = float(sev_ans[\"confidence\"])\n    idx = _argmax_level(sev_ans.get(\"probabilities\"), len(SEVERITY_LEVELS))\n    severity = SEVERITY_LEVELS[idx] if idx is not None else None\n    if severity is None:\n        reasons.append(\"could not read severity probabilities\")\n    elif sev_conf < MIN_SEVERITY_CONFIDENCE:\n        reasons.append(f\"severity uncertain ({severity}, confidence={sev_conf:.2f})\")\n\n    # Cheap consistency check: an urgent ticket rated low severity (or vice versa) deserves a look.\n    if urgent is True and severity == \"low\":\n        reasons.append(\"urgent but low severity\")\n    if urgent is False and severity == \"high\":\n        reasons.append(\"high severity but not urgent\")\n\n    return {\n        \"urgent\": urgent,\n        \"team\": team,\n        \"severity\": severity,\n        \"needs_human\": bool(reasons),\n        \"reasons\": reasons,\n    }\n\n\ndef load_tickets(path: str) -> list[dict]:\n    tickets = []\n    with open(path, encoding=\"utf-8\") as f:\n        for n, line in enumerate(f, 1):\n            line = line.strip()\n            if not line:\n                continue\n            if path.endswith(\".jsonl\"):\n                obj = json.loads(line)\n                tickets.append({\"id\": obj.get(\"id\", n), \"text\": str(obj[\"text\"])})\n            else:\n                tickets.append({\"id\": n, \"text\": line})\n    return tickets\n\n\ndef main() -> int:\n    parser = argparse.ArgumentParser(description=\"Triage support tickets with SubQ Snap.\")\n    parser.add_argument(\"tickets\", help=\".jsonl with {id, text} per line, or plain text with one ticket per line\")\n    parser.add_argument(\"--out\", help=\"write JSONL results here instead of stdout\")\n    args = parser.parse_args()\n\n    key = os.environ.get(\"SUBQ_API_KEY\")\n    if not key:\n        print(\"SUBQ_API_KEY is not set\", file=sys.stderr)\n        return 2\n\n    tickets = load_tickets(args.tickets)\n    out = open(args.out, \"w\", encoding=\"utf-8\") if args.out else sys.stdout\n    total_tokens = flagged = failed = 0\n    try:\n        for t in tickets:\n            record = {\"id\": t[\"id\"]}\n            state = {\"ticket\": t[\"text\"][:MAX_TICKET_CHARS]}\n            started = time.perf_counter()\n            try:\n                result = decide(key, state, QUESTIONS)\n                record.update(interpret(result[\"answers\"]))\n                record[\"raw\"] = result[\"answers\"]\n                record[\"input_tokens\"] = result.get(\"usage\", {}).get(\"input_tokens\")\n                total_tokens += record[\"input_tokens\"] or 0\n            except SnapError as e:\n                if e.status in (401, 402, 403):\n                    # Bad key, no credits or no model access: every further request would fail too.\n                    print(f\"fatal: {e}\", file=sys.stderr)\n                    return 1\n                # 400/422, exhausted retries: this ticket goes to a human; continue with the rest.\n                failed += 1\n                record.update({\"urgent\": None, \"team\": None, \"severity\": None,\n                               \"needs_human\": True, \"reasons\": [f\"api error: {e}\"]})\n            except (KeyError, TypeError, ValueError) as e:\n                failed += 1\n                record.update({\"urgent\": None, \"team\": None, \"severity\": None,\n                               \"needs_human\": True, \"reasons\": [f\"unexpected response: {e!r}\"]})\n            record[\"latency_ms\"] = round((time.perf_counter() - started) * 1000)\n            flagged += record[\"needs_human\"]\n            out.write(json.dumps(record) + \"\\n\")\n            out.flush()\n    finally:\n        if out is not sys.stdout:\n            out.close()\n\n    print(f\"{len(tickets)} tickets, {flagged} flagged for a human ({failed} errors), \"\n          f\"{total_tokens} input tokens (~${total_tokens * 0.05 / 1e6:.4f})\", file=sys.stderr)\n    return 0\n\n\nif __name__ == \"__main__\":\n    sys.exit(main())\n"
+              },
+              {
+                "name": "endpoint",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched api\\.subq\\.ai/v1/systemone",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "key-from-env",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched SUBQ_API_KEY",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "model",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched subq-snap-preview",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-literal-key",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "question-types",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched (?=[\\s\\S]*[\"']noul[\"'])(?=[\\s\\S]*[\"']choice[\"'])(?=[\\s\\S]*[\"']score[\"'])",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 8,
+            "costUsd": 0.26673850000000005,
+            "judgeCostUsd": 0.002261899999999999,
+            "durationSeconds": 103,
+            "startedAt": "2026-10-14T17:13:50.744Z",
+            "error": null,
+            "tracePath": "/tmp/claude-eval-4zYJLc/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "design",
+                "passed": true,
+                "weight": 2,
+                "explanation": "judge votes: PASS PASS PASS — note: long file (9748 chars); llm judges are noisy on long inputs, prefer a regex grader for large artifacts",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "#!/usr/bin/env python3\n\"\"\"Triage customer support tickets with SubQ's Snap decision model.\n\nFor each ticket, one request to the SubQ Decisions API asks three questions:\n  urgent    (noul)   -> probability the ticket is urgent\n  team      (choice) -> billing | engineering | sales | other\n  severity  (score)  -> low | medium | high\n\nResults with low confidence, or tickets that could not be classified at all,\nare marked needs_human=true with a list of reasons.\n\nInput:  JSONL ({\"id\": ..., \"text\": ...} per line), a JSON array of the same,\n        or plain text with one ticket per line. Use \"-\" for stdin.\nOutput: one JSON object per ticket on stdout (JSONL).\n\nUsage:  SUBQ_API_KEY=... python triage.py tickets.jsonl > triaged.jsonl\n\"\"\"\n\nimport argparse\nimport json\nimport os\nimport random\nimport sys\nimport time\nimport urllib.error\nimport urllib.request\n\nAPI_URL = \"https://api.subq.ai/v1/systemone\"\nMODEL = \"subq-snap-preview\"\n\n# Uncertainty thresholds: anything inside these bands goes to a human.\nURGENT_UNSURE_BAND = (0.3, 0.7)  # P(urgent) in this range is ambiguous\nMIN_CHOICE_CONFIDENCE = 0.6\nMIN_SCORE_CONFIDENCE = 0.6\n\nMAX_ATTEMPTS = 5\nBASE_BACKOFF_S = 1.0\nMAX_BACKOFF_S = 30.0\nTIMEOUT_S = 60\n\nSEVERITY_LEVELS = [\"low\", \"medium\", \"high\"]\n\nQUESTIONS = {\n    \"urgent\": {\n        \"type\": \"noul\",\n        \"instructions\": \"Does this support ticket need a response urgently (within hours, not days)?\",\n        \"criteria\": {\n            \"true\": \"Service outage, data loss, security issue, customer blocked from working, \"\n                    \"payment failure preventing use, or explicit hard deadline.\",\n            \"false\": \"General questions, feature requests, minor bugs with workarounds, \"\n                     \"non-blocking billing questions.\",\n        },\n    },\n    \"team\": {\n        \"type\": \"choice\",\n        \"instructions\": \"Which team should own this support ticket?\",\n        \"criteria\": {\n            \"billing\": \"Invoices, charges, refunds, payment methods, subscription plan changes.\",\n            \"engineering\": \"Bugs, errors, outages, performance, integrations, API or technical problems.\",\n            \"sales\": \"Pricing inquiries, upgrades for new capacity, quotes, demos, new contracts.\",\n            \"other\": \"Anything that does not clearly fit billing, engineering, or sales.\",\n        },\n    },\n    \"severity\": {\n        \"type\": \"score\",\n        \"instructions\": \"How severe is the impact of this issue on the customer?\",\n        \"criteria\": [\n            \"Low: cosmetic, question, or minor inconvenience\",\n            \"Medium: degraded functionality or a workaround exists\",\n            \"High: customer is blocked, data loss, security, or widespread outage\",\n        ],\n    },\n}\n\n\nclass FatalAPIError(Exception):\n    \"\"\"Errors that will affect every request (auth, credits, model access): abort the run.\"\"\"\n\n\nclass TicketError(Exception):\n    \"\"\"Errors specific to one ticket (bad input, too long, retries exhausted).\"\"\"\n\n\ndef load_tickets(path):\n    f = sys.stdin if path == \"-\" else open(path, encoding=\"utf-8\")\n    with f:\n        raw = f.read()\n    stripped = raw.strip()\n    if stripped.startswith(\"[\"):\n        items = json.loads(stripped)\n    else:\n        items = []\n        for line in raw.splitlines():\n            if not line.strip():\n                continue\n            try:\n                items.append(json.loads(line))\n            except json.JSONDecodeError:\n                items.append(line.strip())\n    tickets = []\n    for i, item in enumerate(items, 1):\n        if isinstance(item, dict):\n            tickets.append({\"id\": item.get(\"id\", i), \"text\": str(item.get(\"text\", \"\"))})\n        else:\n            tickets.append({\"id\": i, \"text\": str(item)})\n    return tickets\n\n\ndef _retry_delay(attempt, retry_after):\n    if retry_after:\n        try:\n            return min(float(retry_after), MAX_BACKOFF_S)\n        except ValueError:\n            pass\n    delay = min(BASE_BACKOFF_S * 2 ** (attempt - 1), MAX_BACKOFF_S)\n    return delay * random.uniform(0.5, 1.0)  # jitter\n\n\ndef _error_message(body):\n    try:\n        detail = json.loads(body).get(\"detail\", {})\n        if isinstance(detail, dict):\n            return f\"{detail.get('error_type', 'error')}: {detail.get('message', '')}\"\n        return str(detail)\n    except (ValueError, AttributeError):\n        return body[:500]\n\n\ndef call_snap(api_key, ticket_text):\n    payload = json.dumps({\n        \"model\": MODEL,\n        \"state\": {\"ticket\": ticket_text},\n        \"questions\": QUESTIONS,\n    }).encode(\"utf-8\")\n    headers = {\n        \"Authorization\": f\"Bearer {api_key}\",\n        \"Content-Type\": \"application/json\",\n    }\n\n    for attempt in range(1, MAX_ATTEMPTS + 1):\n        req = urllib.request.Request(API_URL, data=payload, headers=headers, method=\"POST\")\n        try:\n            with urllib.request.urlopen(req, timeout=TIMEOUT_S) as resp:\n                return json.loads(resp.read().decode(\"utf-8\"))\n        except urllib.error.HTTPError as e:\n            msg = _error_message(e.read().decode(\"utf-8\", errors=\"replace\"))\n            if e.code in (401, 402, 403):\n                # Bad key, no credits, or no access to the model: no point continuing.\n                raise FatalAPIError(f\"HTTP {e.code}: {msg}\") from e\n            if e.code in (400, 422):\n                # Input problem (e.g. ticket too long, invalid request): don't retry.\n                raise TicketError(f\"HTTP {e.code}: {msg}\") from e\n            if e.code == 429 or e.code >= 500:\n                if attempt == MAX_ATTEMPTS:\n                    raise TicketError(f\"HTTP {e.code} after {attempt} attempts: {msg}\") from e\n                delay = _retry_delay(attempt, e.headers.get(\"Retry-After\"))\n                print(f\"  HTTP {e.code}, retrying in {delay:.1f}s ({attempt}/{MAX_ATTEMPTS})\",\n                      file=sys.stderr)\n                time.sleep(delay)\n                continue\n            raise TicketError(f\"HTTP {e.code}: {msg}\") from e\n        except (urllib.error.URLError, TimeoutError, ConnectionError) as e:\n            if attempt == MAX_ATTEMPTS:\n                raise TicketError(f\"network error after {attempt} attempts: {e}\") from e\n            delay = _retry_delay(attempt, None)\n            print(f\"  network error ({e}), retrying in {delay:.1f}s ({attempt}/{MAX_ATTEMPTS})\",\n                  file=sys.stderr)\n            time.sleep(delay)\n        except json.JSONDecodeError as e:\n            raise TicketError(f\"invalid JSON in response: {e}\") from e\n    raise TicketError(\"retries exhausted\")  # unreachable\n\n\ndef interpret(answers):\n    reasons = []\n\n    urgent_ans = answers.get(\"urgent\") or {}\n    team_ans = answers.get(\"team\") or {}\n    sev_ans = answers.get(\"severity\") or {}\n\n    p_urgent = urgent_ans.get(\"noul\")\n    if p_urgent is None:\n        urgent = None\n        reasons.append(\"missing urgency answer\")\n    else:\n        urgent = p_urgent >= 0.5\n        lo, hi = URGENT_UNSURE_BAND\n        if lo < p_urgent < hi:\n            reasons.append(f\"urgency ambiguous (p={p_urgent:.2f})\")\n\n    team = team_ans.get(\"choice\")\n    team_conf = team_ans.get(\"confidence\")\n    if team is None:\n        reasons.append(\"missing team answer\")\n    elif team_conf is not None and team_conf < MIN_CHOICE_CONFIDENCE:\n        reasons.append(f\"team uncertain (confidence={team_conf:.2f})\")\n\n    sev_score = sev_ans.get(\"score\")\n    sev_conf = sev_ans.get(\"confidence\")\n    severity = None\n    if sev_score is None:\n        reasons.append(\"missing severity answer\")\n    else:\n        idx = max(0, min(len(SEVERITY_LEVELS) - 1, round(sev_score)))\n        severity = SEVERITY_LEVELS[idx]\n        if sev_conf is not None and sev_conf < MIN_SCORE_CONFIDENCE:\n            reasons.append(f\"severity uncertain (confidence={sev_conf:.2f})\")\n\n    # Cross-check: contradictory signals deserve a second look.\n    if urgent is True and severity == \"low\":\n        reasons.append(\"marked urgent but severity low\")\n    if urgent is False and severity == \"high\":\n        reasons.append(\"high severity but not marked urgent\")\n\n    return {\n        \"urgent\": urgent,\n        \"urgent_probability\": p_urgent,\n        \"team\": team,\n        \"team_confidence\": team_conf,\n        \"team_probabilities\": team_ans.get(\"probabilities\"),\n        \"severity\": severity,\n        \"severity_score\": sev_score,\n        \"severity_confidence\": sev_conf,\n        \"needs_human\": bool(reasons),\n        \"review_reasons\": reasons,\n    }\n\n\ndef main():\n    parser = argparse.ArgumentParser(description=__doc__,\n                                     formatter_class=argparse.RawDescriptionHelpFormatter)\n    parser.add_argument(\"tickets\", help=\"tickets file (JSONL, JSON array, or plain lines); '-' for stdin\")\n    args = parser.parse_args()\n\n    api_key = os.environ.get(\"SUBQ_API_KEY\")\n    if not api_key:\n        sys.exit(\"SUBQ_API_KEY is not set\")\n\n    tickets = load_tickets(args.tickets)\n    flagged = 0\n    for n, ticket in enumerate(tickets, 1):\n        print(f\"[{n}/{len(tickets)}] ticket {ticket['id']}\", file=sys.stderr)\n        result = {\"id\": ticket[\"id\"]}\n        if not ticket[\"text\"].strip():\n            result.update(needs_human=True, review_reasons=[\"empty ticket\"])\n        else:\n            try:\n                resp = call_snap(api_key, ticket[\"text\"])\n                result.update(interpret(resp.get(\"answers\", {})))\n            except TicketError as e:\n                result.update(needs_human=True, review_reasons=[f\"API error: {e}\"])\n            except FatalAPIError as e:\n                sys.exit(f\"Aborting after {n - 1} ticket(s): {e}\")\n        flagged += result[\"needs_human\"]\n        print(json.dumps(result), flush=True)\n\n    print(f\"Done: {len(tickets)} tickets, {flagged} flagged for human review.\", file=sys.stderr)\n\n\nif __name__ == \"__main__\":\n    main()\n"
+              },
+              {
+                "name": "endpoint",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched api\\.subq\\.ai/v1/systemone",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "key-from-env",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched SUBQ_API_KEY",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "model",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched subq-snap-preview",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-literal-key",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "question-types",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched (?=[\\s\\S]*[\"']noul[\"'])(?=[\\s\\S]*[\"']choice[\"'])(?=[\\s\\S]*[\"']score[\"'])",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1,
+        "scoreWithout": 1,
+        "passRateWithout": 1,
+        "delta": 0
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 3,
+    "casesPassed": 3,
+    "overallScore": 1,
+    "overallPassRate": 1,
+    "meanDelta": 0.3333333333333333
+  }
+}

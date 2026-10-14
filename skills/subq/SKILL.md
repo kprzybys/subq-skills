@@ -118,9 +118,12 @@ OpenAI `error` shape.
 | 5xx (503 = temporarily unavailable) | server error | yes, backoff |
 
 Retry with exponential backoff and jitter and a bounded number of attempts.
-Set an explicit timeout; after a timeout the outcome is unknown, and retrying
-is safe because a decision request has no side effects. `examples/snap_client.py`
-in this skill's directory is a minimal client that follows these rules.
+Set an explicit timeout; after a timeout or a dropped connection the outcome is
+unknown, and retrying is safe because a decision request has no side effects.
+Do not follow redirects: Python's `urllib` and some other clients resend the
+`Authorization` header to the redirect target, which would leak the key.
+`examples/snap_client.py` in this skill's directory is a minimal client that
+follows these rules, with tests in `examples/test_snap_client.py`.
 
 ## Design the questions
 
@@ -146,8 +149,10 @@ lookups and arithmetic in code; ask the model only for what code cannot decide.
   them, send one comparable score (or noul) per candidate and sort by the
   probabilities.
 - **Ask independent questions about the same state in one request** (up to 16).
-  They cannot see each other's answers; a second request is needed only when an
-  answer decides what to fetch or ask next.
+  Treat them as independent: the SubQ docs say only that the state is sent once
+  and the answers come back by name, so do not write a question that assumes
+  another question's answer. A second request is needed when an answer decides
+  what to fetch or ask next.
 - **Send only what the decision needs.** Trim the state; large states cost
   tokens and time.
 
@@ -198,7 +203,7 @@ https://github.com/kprzybys/snap-vs-jev-swe).
 | Error body (*docs*) | `{"detail": {"error_type", "message"}}` | HTTP status with a JSON body |
 | Retry (*docs*) | 429, 5xx | 429, 529 |
 | Median latency (*measured*, 8,631 short cases) | 453 ms | 255 ms |
-| Accuracy (*measured*) | a few points higher on most classification sets; biggest edge where one request must read a lot (SWE-bench file localisation with 10 whole files, ~71k tokens: 87%) | cannot take inputs above its context limit |
+| Accuracy (*measured*) | a few points higher on most classification sets; biggest edge where one request must read a lot (SWE-bench file localisation with 10 whole files, ~71k tokens: 87.5%) | cannot take inputs above its context limit |
 
 Rules of thumb from those measurements: pick Snap when accuracy or long
 context matters; pick Jev when latency or cost per call matters. Thresholds

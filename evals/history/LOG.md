@@ -29,3 +29,24 @@ Zastrzeżenia: jeden przebieg na ramię; sędzia haiku raz zagłosował FAIL tak
 prompty i skill pisała ta sama osoba (ryzyko uczenia pod test). Do cytowania potrzebne `--runs 3` (ok. $3.5).
 
 Żywy test tego dnia: `skills/subq/examples/snap_client.py` przez wrapper z kluczem → HTTP 200, 246 tokenów, 629 ms.
+
+## 2026-10-14, run2 — po review kodu (plugin 0.1.1)
+
+Zmiany przed przebiegiem (z review: własny przegląd + `/code-review` high): klient nie podąża za przekierowaniami
+(urllib przekazywał `Authorization` na inny host; sprawdzone lokalnie przed i po), retry obejmuje zerwane połączenia
+(`OSError`, `http.client.HTTPException`), `attempts<1` → `ValueError`, 12 testów jednostkowych (`test_snap_client.py`),
+ruff czysty; w SKILL.md usunięte twierdzenie „pytania nie widzą swoich odpowiedzi” (brak w docs SubQ), 87% → 87.5%;
+grader `no-literal-key` łapie każdy dosłowny token po `Bearer`, nie tylko `sk-`.
+
+Komenda jak w README (`--trust-plugin --allow-tools Write WebFetch --no-publish -j 3`), 1 przebieg na ramię. Czas 192 s, koszt $1.30.
+
+| przypadek | z pluginem | bez pluginu | uwagi |
+|---|---|---|---|
+| triage-tickets | 1.0 | 1.0 | jak w run1 |
+| jev-to-snap | 1.0 | 1.0 | **inaczej niż w run1 (0.6)**: tym razem agent bez pluginu znalazł cenę i limit Jev w docs TypeSafe |
+| question-design | 1.0 | 0.0 | jak w run1: bez pluginu agent nie czyta docs i wymyśla format |
+
+Średnia Δ +0.33 (run1: +0.47). Wniosek: różnica w jev-to-snap bez pluginu to kwestia losu (czy agent trafi na
+stronę Models w docs TypeSafe); question-design jest stabilnym przypadkiem przewagi pluginu. Pojedyncze przebiegi
+nie wystarczą do liczb; do analizy zbierać kolejne przebiegi w tym pliku.
+Surowe: `2026-10-14-run2.json`, `2026-10-14-run2-report.html`. Streszczenie: `python3 evals/history/summarize.py <plik.json>`.

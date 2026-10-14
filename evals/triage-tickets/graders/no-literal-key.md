@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: 'Bearer sk-[A-Za-z0-9]{6,}'
+pattern: 'Bearer\s+[A-Za-z0-9_.\-]{12,}'
 match: not_contains
 target: { source: file, path: triage.py }
 arm: both
