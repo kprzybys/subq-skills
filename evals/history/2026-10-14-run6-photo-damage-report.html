@@ -1,0 +1,1110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Eval report — subq v0.1.1</title>
+</head>
+<body>
+<style>
+:root{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme:dark){:root{--plane:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#898781;--hairline:rgba(255,255,255,.10);--grid:#2c2c2a;--inset:rgba(255,255,255,.05);--accent:#3987e5;--base-fill:#898781;--delta-good:#0ca30c;--good:#0ca30c;--warning:#fab219;--critical:#e06c6c;color-scheme:dark}}
+:root[data-theme="dark"]{--plane:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#898781;--hairline:rgba(255,255,255,.10);--grid:#2c2c2a;--inset:rgba(255,255,255,.05);--accent:#3987e5;--base-fill:#898781;--delta-good:#0ca30c;--good:#0ca30c;--warning:#fab219;--critical:#e06c6c;color-scheme:dark}
+:root[data-theme="light"]{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--plane);color:var(--ink);
+  font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:880px;margin:0 auto;padding:40px 24px 64px;display:flex;flex-direction:column;gap:20px}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+header h1{margin:2px 0 0;font-size:24px;font-weight:600;line-height:1.25;text-wrap:balance}
+.meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;color:var(--ink-2);font-size:13px}
+.meta .num{font-variant-numeric:tabular-nums lining-nums}
+.banner{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;
+  border:1px solid var(--hairline);background:var(--surface);font-size:13px}
+.banner .chip-warn{color:var(--warning);font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:14px 16px;
+  display:flex;flex-direction:column;gap:4px}
+.tile .label{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.tile .value{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums lining-nums;line-height:1.1}
+.tile.hero .value{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:48px}
+.tile .sub{font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.tile .value.delta-pos{color:var(--delta-good)}
+.tile .value.delta-neg{color:var(--critical)}
+.toolbar{display:flex;gap:8px;justify-content:flex-end}
+.toolbar button{font:12px system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink-2);
+  background:var(--surface);border:1px solid var(--hairline);border-radius:6px;padding:4px 10px;cursor:pointer}
+.toolbar button:hover{color:var(--ink)}
+.toolbar button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.case{background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:18px 20px;
+  display:flex;flex-direction:column;gap:10px}
+.case-regressed{border-left:3px solid var(--critical)}
+.verdict{margin:6px 0 0;font-size:15px}
+.verdict .delta{font-size:15px}
+.flag{font-size:11px;font-weight:600;color:var(--warning);white-space:nowrap}
+.star{color:var(--warning);font-size:.45em;vertical-align:super;line-height:0;cursor:help}
+.legend summary{cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
+.legend-list{margin:8px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--ink-2)}
+.case-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.case-head h2{margin:0;font-size:16px;font-weight:600}
+.case-head .spacer{flex:1}
+.case-score{font-size:15px;font-weight:600}
+.mono{font:12px "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.num{font-variant-numeric:tabular-nums lining-nums}
+.muted{color:var(--ink-3);font-size:12px}
+.meter{display:inline-block;position:relative;width:120px;height:6px;border-radius:4px;background:var(--grid);
+  vertical-align:middle}
+.meter>span{display:block;height:100%;border-radius:4px;max-width:100%}
+.meter .tick{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink-3);border-radius:1px}
+.m-accent>span{background:var(--accent)}
+.m-base>span{background:var(--base-fill)}
+.delta{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.delta-pos{color:var(--delta-good)}
+.delta-neg{color:var(--critical)}
+.delta-zero{color:var(--ink-3)}
+details.section{border-top:1px solid var(--grid);padding-top:10px}
+details.section>summary{cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--ink-2);list-style-position:outside;margin-left:2px}
+details.section>summary:hover{color:var(--ink)}
+details.section[open]>summary{margin-bottom:8px}
+.md{display:flex;flex-direction:column;gap:8px;background:var(--inset);border-radius:8px;
+  padding:12px 14px;overflow-wrap:break-word}
+.md>:first-child{margin-top:0}
+.md h1,.md h2,.md h3,.md h4,.md h5,.md h6{margin:4px 0 0;font-size:1em;font-weight:600;line-height:1.3}
+.md p,.md ul,.md ol,.md blockquote,.md table,.md pre,.md hr{margin:0}
+.md ul,.md ol{display:flex;flex-direction:column;gap:4px;padding-left:20px}
+.md blockquote{border-left:2px solid var(--hairline);padding-left:10px;color:var(--ink-2)}
+.md :not(pre)>code{background:var(--inset);padding:1px 4px;border-radius:4px;
+  font:.92em "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.md pre{background:var(--inset);border:1px solid var(--hairline);padding:10px 12px;border-radius:6px;
+  overflow-x:auto;font:12px/1.5 "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.md pre code{background:none;padding:0;font:inherit}
+.md table{width:100%;border-collapse:collapse}
+.md th,.md td{padding:5px 8px;text-align:left;vertical-align:top;border-bottom:1px solid var(--grid)}
+.md th{font-weight:600;color:var(--ink-2)}
+.md a{color:var(--accent);text-decoration:none}
+.md a:hover{text-decoration:underline}
+.grader-def{display:flex;flex-direction:column;gap:6px;padding:8px 0}
+.grader-def+.grader-def{border-top:1px solid var(--grid)}
+.grader-def-head{display:flex;align-items:baseline;gap:8px}
+.grader-name{font:13px "SF Mono",ui-monospace,Menlo,Consolas,monospace;font-weight:600}
+.badge{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);
+  border:1px solid var(--hairline);border-radius:999px;padding:1px 8px}
+.config{display:flex;flex-direction:column;gap:2px;background:var(--inset);border-radius:8px;padding:10px 14px}
+.config code{font:12px "SF Mono",ui-monospace,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+.arm{display:flex;flex-direction:column;gap:8px;padding:6px 0}
+.arm+.arm{border-top:1px dashed var(--grid);margin-top:4px;padding-top:12px}
+.arm-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.arm-label{font-size:13px;font-weight:600}
+.run{border:1px solid var(--grid);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.run-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.run-title{font-size:12px;font-weight:600;color:var(--ink-2)}
+.run-error .explanation{color:var(--ink-2)}
+.note{font-size:12px;color:var(--ink-2)}
+.graders{display:flex;flex-direction:column;gap:4px}
+details.grader{border-radius:6px}
+details.grader>summary{cursor:pointer;display:flex;align-items:baseline;gap:8px;padding:3px 4px;
+  border-radius:6px;list-style:none}
+details.grader>summary::-webkit-details-marker{display:none}
+details.grader>summary::before{content:'▸';font-size:10px;color:var(--ink-3);flex:none;
+  transition:transform .12s ease}
+details.grader[open]>summary::before{transform:rotate(90deg)}
+details.grader>summary:hover{background:var(--inset)}
+details.grader>summary:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.grader-body{padding:6px 8px 8px 24px;display:flex;flex-direction:column;gap:6px}
+.chip{font-size:11px;font-weight:600;border-radius:999px;padding:1px 8px;white-space:nowrap}
+.chip-pass{color:var(--good);border:1px solid currentColor}
+.chip-fail{color:var(--critical);border:1px solid currentColor}
+.chip.chip-warn{color:var(--warning);border:1px solid currentColor}
+.explanation{margin:0;font-size:13px;color:var(--ink-2);white-space:pre-wrap;overflow-wrap:break-word}
+.kv{display:flex;gap:8px;font-size:12px;color:var(--ink-3)}
+.votes{font-variant-numeric:tabular-nums;letter-spacing:.1em}
+pre.evidence{margin:0;background:var(--inset);border:1px solid var(--hairline);border-radius:6px;
+  padding:8px 10px;overflow-x:auto;max-height:320px;
+  font:12px/1.5 "SF Mono",ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-wrap:break-word}
+footer{color:var(--ink-3);font-size:12px;text-align:center;padding-top:8px}
+@media (prefers-reduced-motion:no-preference){
+  details.grader>summary,.toolbar button{transition:background .12s ease,color .12s ease}
+}
+@media (prefers-reduced-motion:reduce){
+  details.grader>summary::before{transition:none}
+}
+@media print{
+  :root,:root[data-theme="dark"],:root[data-theme="light"]{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;color-scheme:light}
+  body{background:#fff}
+  .toolbar{display:none}
+  .case,.run,.grader-def{break-inside:avoid}
+  pre.evidence{max-height:none}
+}
+</style>
+<div class="wrap">
+<header>
+<div class="eyebrow">Plugin eval report</div>
+<h1>subq v0.1.1</h1>
+<p class="verdict">Plugin effect: <span class="delta delta-neg">↓ -40.0 pts</span> vs baseline — improved 0 · flat 0 · regressed 1 of 1 case.</p>
+<div class="meta">
+<span class="mono">.</span>
+<span>Claude Code v2.1.300</span>
+<span class="num">2026-10-14 20:11 UTC</span>
+<span class="num">2m 35s</span>
+<span class="num">$0.77</span>
+<span class="num">2 runs</span>
+<span class="num">2 in flight</span>
+
+
+<span>judge default</span>
+<span class="num">threshold 100%</span>
+<span>filtered: --case photo-damage-no-host</span>
+</div>
+</header>
+
+<section class="tiles">
+<div class="tile hero"><span class="label">Suite score · with plugin</span><span class="value">60%</span><span class="sub">mean of per-case scores</span></div>
+<div class="tile"><span class="label">Ablation Δ</span><span class="value num delta-neg">↓ -40.0</span><span class="sub">score points vs baseline, 1 of 1 case</span></div>
+<div class="tile"><span class="label">Baseline score</span><span class="value num">100%</span><span class="sub">without the plugin</span></div>
+<div class="tile"><span class="label">Cases</span><span class="value num">1</span><span class="sub">0 of 1 ≥ 100% threshold</span></div>
+<div class="tile"><span class="label">Perfect runs</span><span class="value num">0%</span><span class="sub">runs where every grader passed</span></div>
+</section>
+<details class="section legend">
+<summary>How to read this report</summary>
+<ul class="legend-list">
+<li>A run's score is the weighted fraction of its graders that passed; a "perfect" run passed every grader.</li>
+<li>A case's score is the mean of its runs; a case passes when its score is at or above the 100% threshold (the tick on each case bar).</li>
+<li>The suite score is the mean of the per-case scores.</li>
+<li>Judge votes are independent samples of the LLM judge; the majority decides pass or fail.</li>
+<li>"With plugin" and "Baseline" runs are identical except for the plugin being loaded; Δ is the with-plugin score minus the baseline score.</li>
+
+</ul>
+</details>
+<div class="toolbar"><button type="button" data-act="expand">Expand all</button><button type="button" data-act="collapse">Collapse all</button></div>
+<article class="case case-regressed" id="case-1">
+<div class="case-head">
+<h2>photo-damage-no-host</h2>
+<span class="muted mono">evals/photo-damage-no-host</span>
+<span class="spacer"></span>
+
+<span class="delta delta-neg">↓ -40.0 pts</span>
+<span class="muted">with plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:60.0%"></span><i class="tick" style="left:100.0%"></i></span>
+<span class="num case-score">60%</span>
+</div>
+
+<details class="section" open>
+<summary>Results</summary>
+<section class="arm">
+<div class="arm-head">
+<span class="arm-label">With plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:60.0%"></span></span>
+<span class="num">60%</span>
+<span class="muted num">0% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:60.0%"></span></span>
+<span class="num">60%</span>
+<span class="muted num">7 turns · $0.38 · 20:11:58 UTC</span>
+</div>
+
+<div class="graders"><details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">design</span> <span class="muted">×2</span> </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: FAIL FAIL FAIL — note: long file (15166 chars); llm judges are noisy on long inputs, prefer a regex grader for large artifacts</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✗ ✗ ✗</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">&quot;&quot;&quot;Check return photos for product damage with SubQ Snap (POST /v1/systemone).
+
+Usage:
+    SUBQ_API_KEY=... python3 check_photos.py RETURN_DIR [RETURN_DIR ...]
+
+Each RETURN_DIR holds the files for one return: up to 3 JPEG/PNG photos, or a short video
+(mp4/mov/webm/mkv/avi/m4v) when there are no photos. For a video, 4 frames are sampled with
+ffmpeg (must be on PATH), because the API does not accept video.
+
+Output: one JSON line per return on stdout, with the raw probabilities kept so thresholds can be
+changed later without calling the API again:
+    {&quot;return&quot;: ..., &quot;status&quot;: &quot;damaged&quot; | &quot;not_damaged&quot; | &quot;needs_review&quot; | &quot;error&quot;,
+     &quot;damage_types&quot;: [...], &quot;reasons&quot;: [...], &quot;probabilities&quot;: {...}, &quot;input_tokens&quot;: ...}
+&quot;needs_review&quot; and &quot;error&quot; both mean a person must look at the return.
+
+Error handling:
+- Retried with exponential backoff and full jitter (bounded attempts): HTTP 429 (rate limit),
+  HTTP 5xx (503 = temporarily unavailable), timeouts and dropped connections. A decision request
+  has no side effects, so resending one whose outcome is unknown is safe.
+- Not retried, that return goes to a person: HTTP 400 (input rejected or too large) and
+  422 (invalid request or image). Resending the same request would give the same answer.
+- Not retried, the whole run stops: HTTP 401 (bad key), 402 (no credits), 403 (key cannot use
+  the model), and any redirect (never followed, so the key is never sent to another host).
+  These would fail every remaining return the same way.
+
+Exit codes: 0 all returns decided automatically, 1 at least one return needs a person or failed,
+2 the run was stopped by an auth/credit error or bad usage.
+
+The thresholds below are placeholders: calibrate them on returns whose outcome you already know.
+&quot;&quot;&quot;
+
+from __future__ import annotations
+
+import argparse
+import base64
+import http.client
+import io
+import json
+import os
+import random
+import shutil
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+URL = &quot;https://api.subq.ai/v1/systemone&quot;
+MODEL = &quot;subq-snap-preview&quot;
+
+ATTEMPTS = 5
+TIMEOUT_S = 60.0
+BASE_DELAY_S = 1.0
+MAX_DELAY_S = 30.0
+
+MAX_PHOTOS = 3  # what customers may attach; the API itself allows 4
+VIDEO_FRAMES = 4
+MAX_IMAGE_BYTES = 4 * 1024 * 1024  # API limit per decoded image
+MAX_TOTAL_BYTES = 8 * 1024 * 1024  # API limit for all images together
+MAX_SIDE_PX = 1600  # images larger than this are shrunk when Pillow is installed
+
+# Placeholder thresholds; tune on labelled returns.
+CLEAR_YES = 0.80  # noul at or above: treat as yes
+CLEAR_NO = 0.20  # noul at or below: treat as no; anything between goes to a person
+JUDGEABLE_MIN = 0.70  # below: photos do not show the product well enough to decide
+
+PHOTO_EXTS = {&quot;.jpg&quot;, &quot;.jpeg&quot;, &quot;.png&quot;}
+VIDEO_EXTS = {&quot;.mp4&quot;, &quot;.mov&quot;, &quot;.m4v&quot;, &quot;.webm&quot;, &quot;.mkv&quot;, &quot;.avi&quot;}
+
+DAMAGE_TYPES = {
+    &quot;cracked&quot;: &quot;The product has a crack, fracture, break or shattered area (for example a cracked &quot;
+    &quot;screen, casing or glass).&quot;,
+    &quot;scratched&quot;: &quot;The product surface has scratches, scuffs or abrasion marks, without a crack or dent.&quot;,
+    &quot;dented&quot;: &quot;The product has a dent, bend, crush mark or other deformation of its shape.&quot;,
+    &quot;missing_part&quot;: &quot;A part, component or accessory that belongs to the product is visibly missing or &quot;
+    &quot;detached (for example a missing button, cap, leg, cable or lid).&quot;,
+}
+
+QUESTIONS: dict = {
+    &quot;judgeable&quot;: {
+        &quot;type&quot;: &quot;noul&quot;,
+        &quot;instructions&quot;: &quot;Do the images show the returned product clearly enough (in focus, lit, product &quot;
+        &quot;in frame) to judge whether it is damaged?&quot;,
+        &quot;criteria&quot;: {
+            &quot;true&quot;: &quot;The product is visible clearly enough to see whether it is damaged.&quot;,
+            &quot;false&quot;: &quot;Blurry, too dark, product missing or only partly in frame, or the images show &quot;
+            &quot;something other than a product.&quot;,
+        },
+    },
+    &quot;damaged&quot;: {
+        &quot;type&quot;: &quot;noul&quot;,
+        &quot;instructions&quot;: &quot;Do the images show physical damage to the returned product? Ignore packaging, &quot;
+        &quot;dust, reflections and normal glare.&quot;,
+        &quot;criteria&quot;: {
+            &quot;true&quot;: &quot;The product itself is visibly damaged: cracked, scratched, dented, broken or missing a part.&quot;,
+            &quot;false&quot;: &quot;The product looks intact, with no visible physical damage.&quot;,
+        },
+    },
+}
+for _name, _desc in DAMAGE_TYPES.items():
+    QUESTIONS[_name] = {
+        &quot;type&quot;: &quot;noul&quot;,
+        &quot;instructions&quot;: f&quot;Looking only at the product in the images: {_desc.split(&apos; (&apos;)[0]}?&quot;,
+        &quot;criteria&quot;: {&quot;true&quot;: _desc, &quot;false&quot;: &quot;No damage of this kind is visible on the product.&quot;},
+    }
+
+
+# --------------------------------------------------------------------------- API client
+
+
+class SnapError(Exception):
+    &quot;&quot;&quot;No decision was produced. `status` is the HTTP status, or None for a network failure.&quot;&quot;&quot;
+
+    def __init__(self, status: int | None, error_type: str, message: str) -&gt; None:
+        super().__init__(f&quot;{status} {error_type}: {message}&quot;)
+        self.status = status
+        self.error_type = error_type
+
+
+class FatalSnapError(SnapError):
+    &quot;&quot;&quot;Auth, credit or redirect problem: every further request would fail too.&quot;&quot;&quot;
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001
+        return None  # urllib raises HTTPError for the 3xx, so the key is not resent elsewhere
+
+
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
+def _error_detail(e: urllib.error.HTTPError) -&gt; dict:
+    try:
+        payload = json.load(e)
+    except (ValueError, OSError, http.client.HTTPException):
+        return {&quot;error_type&quot;: &quot;http_error&quot;, &quot;message&quot;: &quot;&quot;}
+    detail = payload.get(&quot;detail&quot;) if isinstance(payload, dict) else None
+    return detail if isinstance(detail, dict) else {&quot;error_type&quot;: &quot;http_error&quot;, &quot;message&quot;: str(payload)[:200]}
+
+
+def decide(key: str, state: dict, questions: dict, images: list[dict]) -&gt; dict:
+    body = json.dumps({&quot;model&quot;: MODEL, &quot;state&quot;: state, &quot;questions&quot;: questions, &quot;images&quot;: images}).encode()
+    headers = {&quot;Authorization&quot;: f&quot;Bearer {key}&quot;, &quot;Content-Type&quot;: &quot;application/json&quot;}
+    for attempt in range(ATTEMPTS):
+        last = attempt == ATTEMPTS - 1
+        try:
+            request = urllib.request.Request(URL, data=body, headers=headers)
+            with _OPENER.open(request, timeout=TIMEOUT_S) as response:
+                return json.load(response)
+        except urllib.error.HTTPError as e:
+            d = _error_detail(e)
+            err_type, msg = d.get(&quot;error_type&quot;, &quot;http_error&quot;), d.get(&quot;message&quot;, &quot;&quot;)
+            if e.code in (401, 402, 403) or 300 &lt;= e.code &lt; 400:
+                raise FatalSnapError(e.code, err_type, msg) from e
+            if not (e.code == 429 or e.code &gt;= 500) or last:
+                raise SnapError(e.code, err_type, msg) from e
+        except (OSError, http.client.HTTPException, ValueError) as e:
+            # URLError, timeouts, resets, truncated or non-JSON bodies: outcome unknown, safe to retry.
+            if last:
+                raise SnapError(None, &quot;network&quot;, f&quot;{type(e).__name__}: {e}&quot;) from e
+        time.sleep(random.uniform(0, min(MAX_DELAY_S, BASE_DELAY_S * 2**attempt)))
+    raise SnapError(None, &quot;internal&quot;, &quot;retry loop ended without a result&quot;)
+
+
+# --------------------------------------------------------------------------- inputs
+
+
+class InputProblem(Exception):
+    &quot;&quot;&quot;The return&apos;s files cannot be sent as-is; a person should look at them.&quot;&quot;&quot;
+
+
+def _media_type(data: bytes) -&gt; str | None:
+    if data.startswith(b&quot;\xff\xd8\xff&quot;):
+        return &quot;image/jpeg&quot;
+    if data.startswith(b&quot;\x89PNG\r\n\x1a\n&quot;):
+        return &quot;image/png&quot;
+    return None
+
+
+def _shrink(data: bytes) -&gt; bytes:
+    &quot;&quot;&quot;Re-encode as JPEG no larger than MAX_SIDE_PX; needs Pillow.&quot;&quot;&quot;
+    try:
+        from PIL import Image, ImageOps
+    except ImportError as e:
+        raise InputProblem(&quot;image over 4 MiB and Pillow is not installed to shrink it&quot;) from e
+    with Image.open(io.BytesIO(data)) as img:
+        img = ImageOps.exif_transpose(img).convert(&quot;RGB&quot;)
+        img.thumbnail((MAX_SIDE_PX, MAX_SIDE_PX))
+        out = io.BytesIO()
+        img.save(out, format=&quot;JPEG&quot;, quality=85)
+        return out.getvalue()
+
+
+def _image_entry(data: bytes, label: str) -&gt; dict:
+    media = _media_type(data)
+    if media is None:
+        raise InputProblem(f&quot;{label} is not a JPEG or PNG&quot;)
+    if len(data) &gt; MAX_IMAGE_BYTES:
+        data, media = _shrink(data), &quot;image/jpeg&quot;
+        if len(data) &gt; MAX_IMAGE_BYTES:
+            raise InputProblem(f&quot;{label} is still over 4 MiB after shrinking&quot;)
+    return {&quot;mediaType&quot;: media, &quot;base64&quot;: base64.b64encode(data).decode(&quot;ascii&quot;), &quot;_size&quot;: len(data)}
+
+
+def _run(cmd: list[str], timeout: float) -&gt; bytes:
+    try:
+        return subprocess.run(cmd, capture_output=True, check=True, timeout=timeout).stdout
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as e:
+        raise InputProblem(f&quot;could not read video: {type(e).__name__}&quot;) from e
+
+
+def _video_frames(path: Path) -&gt; list[bytes]:
+    if not (shutil.which(&quot;ffmpeg&quot;) and shutil.which(&quot;ffprobe&quot;)):
+        raise InputProblem(&quot;video received but ffmpeg/ffprobe is not installed&quot;)
+    src = f&quot;file:{path.resolve()}&quot;  # &quot;file:&quot; stops ffmpeg from treating the name as a protocol or option
+    out = _run([&quot;ffprobe&quot;, &quot;-v&quot;, &quot;error&quot;, &quot;-show_entries&quot;, &quot;format=duration&quot;, &quot;-of&quot;, &quot;csv=p=0&quot;, src], 30)
+    try:
+        duration = float(out.strip())
+    except ValueError as e:
+        raise InputProblem(&quot;could not read video duration&quot;) from e
+    if duration &lt;= 0:
+        raise InputProblem(&quot;video has no duration&quot;)
+    frames = []
+    for i in range(1, VIDEO_FRAMES + 1):
+        t = duration * i / (VIDEO_FRAMES + 1)  # evenly spaced, skipping the very start and end
+        frame = _run(
+            [&quot;ffmpeg&quot;, &quot;-v&quot;, &quot;error&quot;, &quot;-ss&quot;, f&quot;{t:.3f}&quot;, &quot;-i&quot;, src, &quot;-frames:v&quot;, &quot;1&quot;,
+             &quot;-vf&quot;, f&quot;scale=&apos;min({MAX_SIDE_PX},iw)&apos;:-2&quot;, &quot;-q:v&quot;, &quot;3&quot;, &quot;-f&quot;, &quot;image2&quot;, &quot;-c:v&quot;, &quot;mjpeg&quot;, &quot;pipe:1&quot;],
+            60,
+        )
+        if frame:
+            frames.append(frame)
+    if not frames:
+        raise InputProblem(&quot;no frames could be extracted from the video&quot;)
+    return frames
+
+
+def load_images(folder: Path) -&gt; tuple[list[dict], str]:
+    &quot;&quot;&quot;Return (API image entries, source description). Raises InputProblem for a person to handle.&quot;&quot;&quot;
+    files = sorted(p for p in folder.iterdir() if p.is_file() and not p.name.startswith(&quot;.&quot;))
+    photos = [p for p in files if p.suffix.lower() in PHOTO_EXTS]
+    videos = [p for p in files if p.suffix.lower() in VIDEO_EXTS]
+
+    if photos:
+        if len(photos) &gt; MAX_PHOTOS:
+            raise InputProblem(f&quot;{len(photos)} photos, more than the {MAX_PHOTOS} allowed&quot;)
+        images = [_image_entry(p.read_bytes(), p.name) for p in photos]
+        source = f&quot;{len(images)} customer photo(s)&quot; + (&quot; (a video was also attached and ignored)&quot; if videos else &quot;&quot;)
+    elif videos:
+        if len(videos) &gt; 1:
+            raise InputProblem(f&quot;{len(videos)} videos attached, expected one&quot;)
+        images = [_image_entry(f, f&quot;{videos[0].name} frame {i}&quot;) for i, f in enumerate(_video_frames(videos[0]), 1)]
+        source = f&quot;{len(images)} frames sampled evenly from a customer video&quot;
+    else:
+        raise InputProblem(&quot;no JPEG/PNG photos or video found&quot;)
+
+    if sum(img[&quot;_size&quot;] for img in images) &gt; MAX_TOTAL_BYTES:
+        raise InputProblem(&quot;images together exceed 8 MiB&quot;)
+    for img in images:
+        del img[&quot;_size&quot;]
+    return images, source
+
+
+# --------------------------------------------------------------------------- decision
+
+
+def classify(answers: dict) -&gt; tuple[str, list[str], list[str], dict]:
+    &quot;&quot;&quot;Turn answers into (status, damage_types, reasons, probabilities). Code owns these rules.&quot;&quot;&quot;
+    probs = {name: answers[name][&quot;noul&quot;] for name in QUESTIONS}
+    reasons = []
+
+    if probs[&quot;judgeable&quot;] &lt; JUDGEABLE_MIN:
+        return &quot;needs_review&quot;, [], [&quot;photos may not show the product clearly&quot;], probs
+
+    damaged = probs[&quot;damaged&quot;]
+    types = [t for t in DAMAGE_TYPES if probs[t] &gt;= CLEAR_YES]
+    unsure_types = [t for t in DAMAGE_TYPES if CLEAR_NO &lt; probs[t] &lt; CLEAR_YES]
+
+    if CLEAR_NO &lt; damaged &lt; CLEAR_YES:
+        reasons.append(f&quot;unsure whether the product is damaged (p={damaged:.2f})&quot;)
+    elif damaged &gt;= CLEAR_YES:
+        if not types:
+            reasons.append(&quot;damage seen but no clear damage type&quot;)
+        if unsure_types:
+            reasons.append(&quot;unsure about damage type(s): &quot; + &quot;, &quot;.join(unsure_types))
+    elif types:  # damaged is a clear no, yet some type is a clear yes
+        reasons.append(&quot;conflicting answers: no damage overall but &quot; + &quot;, &quot;.join(types))
+
+    if reasons:
+        return &quot;needs_review&quot;, types, reasons, probs
+    return (&quot;damaged&quot; if damaged &gt;= CLEAR_YES else &quot;not_damaged&quot;), types, [], probs
+
+
+def check_return(key: str, folder: Path) -&gt; dict:
+    result: dict = {&quot;return&quot;: folder.name, &quot;path&quot;: str(folder)}
+    try:
+        images, source = load_images(folder)
+    except (InputProblem, OSError) as e:
+        return {**result, &quot;status&quot;: &quot;needs_review&quot;, &quot;damage_types&quot;: [], &quot;reasons&quot;: [str(e)]}
+
+    state = {
+        &quot;task&quot;: &quot;Inspect a product a customer is returning and judge its physical condition.&quot;,
+        &quot;images&quot;: source,
+        &quot;note&quot;: &quot;All images show the same returned item; judge the product, not the packaging or background.&quot;,
+    }
+    try:
+        response = decide(key, state, QUESTIONS, images)
+    except FatalSnapError:
+        raise
+    except SnapError as e:
+        return {**result, &quot;status&quot;: &quot;error&quot;, &quot;damage_types&quot;: [], &quot;reasons&quot;: [f&quot;API error, not decided: {e}&quot;]}
+
+    try:
+        status, types, reasons, probs = classify(response[&quot;answers&quot;])
+    except (KeyError, TypeError) as e:
+        return {**result, &quot;status&quot;: &quot;error&quot;, &quot;damage_types&quot;: [], &quot;reasons&quot;: [f&quot;unexpected response shape: {e!r}&quot;]}
+    return {
+        **result,
+        &quot;status&quot;: status,
+        &quot;damage_types&quot;: types,
+        &quot;reasons&quot;: reasons,
+        &quot;source&quot;: source,
+        &quot;probabilities&quot;: probs,
+        &quot;input_tokens&quot;: response.get(&quot;usage&quot;, {}).get(&quot;input_tokens&quot;),
+    }
+
+
+def main(argv: list[str] | None = None) -&gt; int:
+    parser = argparse.ArgumentParser(description=&quot;Check customer return photos for damage with SubQ Snap.&quot;)
+    parser.add_argument(&quot;returns&quot;, nargs=&quot;+&quot;, type=Path, help=&quot;one folder per return&quot;)
+    args = parser.parse_args(argv)
+
+    key = os.environ.get(&quot;SUBQ_API_KEY&quot;)
+    if not key:
+        print(&quot;check_photos: SUBQ_API_KEY is not set&quot;, file=sys.stderr)
+        return 2
+
+    needs_person = False
+    for folder in args.returns:
+        if not folder.is_dir():
+            row = {&quot;return&quot;: folder.name, &quot;path&quot;: str(folder), &quot;status&quot;: &quot;needs_review&quot;,
+                   &quot;damage_types&quot;: [], &quot;reasons&quot;: [&quot;not a folder&quot;]}
+        else:
+            try:
+                row = check_return(key, folder)
+            except FatalSnapError as e:
+                print(f&quot;check_photos: stopping, {e}&quot;, file=sys.stderr)
+                return 2
+        needs_person |= row[&quot;status&quot;] in (&quot;needs_review&quot;, &quot;error&quot;)
+        print(json.dumps(row, ensure_ascii=False), flush=True)
+    return 1 if needs_person else 0
+
+
+if __name__ == &quot;__main__&quot;:
+    sys.exit(main())
+</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">endpoint</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched api\.subq\.ai/v1/systemone</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">model</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched subq-snap-preview</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-data-uri</span>  </summary>
+<div class="grader-body">
+<p class="explanation">pattern absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">skill-fired</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details></div>
+</div>
+</section><section class="arm">
+<div class="arm-head">
+<span class="arm-label">Baseline (no plugin)</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">100% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">12 turns · $0.40 · 20:11:58 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">design</span> <span class="muted">×2</span> </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS — note: long file (16088 chars); llm judges are noisy on long inputs, prefer a regex grader for large artifacts</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">#!/usr/bin/env python3
+&quot;&quot;&quot;Classify product-return photos for damage with the SubQ Decisions API.
+
+Usage:
+    export SUBQ_API_KEY=...
+    python check_photos.py RETURN_DIR [RETURN_DIR ...]
+    python check_photos.py returns/*/          # one folder per return
+
+Each RETURN_DIR holds the customer&apos;s media for one return: up to 3 JPEG/PNG
+photos, or a short video (frames are sampled with ffmpeg, because the API
+does not accept video). Writes one JSON object per return to stdout:
+
+    {&quot;return_id&quot;: &quot;...&quot;, &quot;decision&quot;: &quot;damaged&quot; | &quot;not_damaged&quot; | &quot;needs_review&quot;,
+     &quot;damage_type&quot;: &quot;cracked&quot; | &quot;scratched&quot; | &quot;dented&quot; | &quot;missing_part&quot; | null,
+     &quot;reasons&quot;: [...], &quot;scores&quot;: {...}}
+
+Anything uncertain, unreadable, or that failed at the API ends up as
+&quot;needs_review&quot; so a person looks at it.
+
+Requires: requests, Pillow; ffmpeg/ffprobe on PATH for video returns.
+&quot;&quot;&quot;
+
+import argparse
+import base64
+import io
+import json
+import os
+import random
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+import requests
+from PIL import Image, ImageOps, UnidentifiedImageError
+
+API_URL = &quot;https://api.subq.ai/v1/systemone&quot;
+MODEL = &quot;subq-snap-preview&quot;
+
+PHOTO_EXTS = {&quot;.jpg&quot;, &quot;.jpeg&quot;, &quot;.png&quot;}
+VIDEO_EXTS = {&quot;.mp4&quot;, &quot;.mov&quot;, &quot;.m4v&quot;, &quot;.webm&quot;, &quot;.avi&quot;, &quot;.mkv&quot;}
+MAX_PHOTOS = 3          # what customers are allowed to attach
+MAX_API_IMAGES = 4      # API limit per request
+VIDEO_FRAMES = 4
+
+# API limits: 4 MiB per image, 8 MiB total (decoded). Stay well under both.
+MAX_SIDE_PX = 2048
+MAX_IMAGE_BYTES = 1_900_000
+
+DAMAGE_TYPES = {
+    &quot;cracked&quot;: &quot;The product or a part of it has a crack, fracture, or shattered area.&quot;,
+    &quot;scratched&quot;: &quot;The surface has scratches, scuffs, or abrasion marks, but is not cracked or deformed.&quot;,
+    &quot;dented&quot;: &quot;The product is dented, bent, crushed, or otherwise deformed.&quot;,
+    &quot;missing_part&quot;: &quot;A component, piece, or accessory that should be attached or present is missing.&quot;,
+    &quot;other&quot;: &quot;Damage that does not fit any of the categories above, or several kinds with none dominant.&quot;,
+}
+
+# HTTP statuses worth retrying: rate limiting and transient server trouble.
+RETRYABLE_STATUS = {408, 429, 500, 502, 503, 504}
+# Account-level problems: every following request would fail the same way.
+FATAL_STATUS = {401, 402, 403}
+
+
+class ApiError(Exception):
+    def __init__(self, message, status=None, retryable=False):
+        super().__init__(message)
+        self.status = status
+        self.retryable = retryable
+
+
+class FatalApiError(ApiError):
+    &quot;&quot;&quot;Stop the whole run (bad key, no credits, no model access).&quot;&quot;&quot;
+
+
+# --------------------------------------------------------------------------
+# Media preparation
+# --------------------------------------------------------------------------
+
+def encode_image(img):
+    &quot;&quot;&quot;Normalise a PIL image to an API-ready JPEG under the size limits.&quot;&quot;&quot;
+    img = ImageOps.exif_transpose(img)
+    if img.mode != &quot;RGB&quot;:
+        img = img.convert(&quot;RGB&quot;)
+    img.thumbnail((MAX_SIDE_PX, MAX_SIDE_PX))
+    for quality in (90, 80, 70, 60, 50):
+        buf = io.BytesIO()
+        img.save(buf, format=&quot;JPEG&quot;, quality=quality)
+        if buf.tell() &lt;= MAX_IMAGE_BYTES:
+            break
+    else:
+        img.thumbnail((MAX_SIDE_PX // 2, MAX_SIDE_PX // 2))
+        buf = io.BytesIO()
+        img.save(buf, format=&quot;JPEG&quot;, quality=70)
+    return {&quot;mediaType&quot;: &quot;image/jpeg&quot;,
+            &quot;base64&quot;: base64.b64encode(buf.getvalue()).decode(&quot;ascii&quot;)}
+
+
+def load_photo(path):
+    with Image.open(path) as img:
+        img.load()
+        return encode_image(img)
+
+
+def sample_video_frames(path, n=VIDEO_FRAMES):
+    &quot;&quot;&quot;Grab n evenly spaced frames from a video with ffmpeg.&quot;&quot;&quot;
+    if not shutil.which(&quot;ffmpeg&quot;) or not shutil.which(&quot;ffprobe&quot;):
+        raise RuntimeError(&quot;ffmpeg/ffprobe not installed; cannot read video&quot;)
+    probe = subprocess.run(
+        [&quot;ffprobe&quot;, &quot;-v&quot;, &quot;error&quot;, &quot;-show_entries&quot;, &quot;format=duration&quot;,
+         &quot;-of&quot;, &quot;default=noprint_wrappers=1:nokey=1&quot;, str(path)],
+        capture_output=True, text=True, timeout=60)
+    try:
+        duration = float(probe.stdout.strip())
+    except ValueError:
+        raise RuntimeError(f&quot;cannot read video duration: {probe.stderr.strip()[:200]}&quot;)
+    if duration &lt;= 0:
+        raise RuntimeError(&quot;video has zero duration&quot;)
+
+    frames = []
+    with tempfile.TemporaryDirectory() as tmp:
+        for i in range(n):
+            t = duration * (2 * i + 1) / (2 * n)   # midpoints of n equal slices
+            out = Path(tmp) / f&quot;frame{i}.png&quot;
+            subprocess.run(
+                [&quot;ffmpeg&quot;, &quot;-v&quot;, &quot;error&quot;, &quot;-y&quot;, &quot;-ss&quot;, f&quot;{t:.3f}&quot;, &quot;-i&quot;, str(path),
+                 &quot;-frames:v&quot;, &quot;1&quot;, str(out)],
+                capture_output=True, timeout=120)
+            if out.exists():
+                with Image.open(out) as img:
+                    img.load()
+                    frames.append(encode_image(img))
+    if not frames:
+        raise RuntimeError(&quot;could not extract any frames from video&quot;)
+    return frames
+
+
+def collect_media(folder):
+    &quot;&quot;&quot;Return (images, source_description, notes) for one return folder.&quot;&quot;&quot;
+    files = sorted(p for p in folder.iterdir() if p.is_file() and not p.name.startswith(&quot;.&quot;))
+    photos = [p for p in files if p.suffix.lower() in PHOTO_EXTS]
+    videos = [p for p in files if p.suffix.lower() in VIDEO_EXTS]
+    ignored = [p.name for p in files if p not in photos and p not in videos]
+
+    notes = []
+    if ignored:
+        notes.append(f&quot;ignored unsupported files: {&apos;, &apos;.join(ignored)}&quot;)
+
+    if photos:
+        if len(photos) &gt; MAX_PHOTOS:
+            notes.append(f&quot;{len(photos)} photos found, expected at most {MAX_PHOTOS}; &quot;
+                         f&quot;using the first {MAX_PHOTOS}&quot;)
+            photos = photos[:MAX_PHOTOS]
+        if videos:
+            notes.append(&quot;photos and video both present; used photos only&quot;)
+        images = []
+        for p in photos:
+            try:
+                images.append(load_photo(p))
+            except (UnidentifiedImageError, OSError) as e:
+                notes.append(f&quot;unreadable photo {p.name}: {e}&quot;)
+        return images, f&quot;{len(images)} customer photo(s)&quot;, notes
+
+    if videos:
+        if len(videos) &gt; 1:
+            notes.append(f&quot;{len(videos)} videos found; used {videos[0].name}&quot;)
+        try:
+            frames = sample_video_frames(videos[0])
+        except (RuntimeError, OSError, subprocess.SubprocessError, UnidentifiedImageError) as e:
+            notes.append(f&quot;video {videos[0].name}: {e}&quot;)
+            return [], &quot;video&quot;, notes
+        return frames, f&quot;{len(frames)} frames sampled in time order from a customer video&quot;, notes
+
+    return [], &quot;nothing&quot;, notes
+
+
+# --------------------------------------------------------------------------
+# API call with retries
+# --------------------------------------------------------------------------
+
+def build_request(images, source):
+    return {
+        &quot;model&quot;: MODEL,
+        &quot;state&quot;: (
+            &quot;A customer is returning a product and attached images of it. &quot;
+            f&quot;The images are {source}. All images show the same returned item. &quot;
+            &quot;Judge only what is visible in the images.&quot;
+        ),
+        &quot;images&quot;: images,
+        &quot;questions&quot;: {
+            &quot;assessable&quot;: {
+                &quot;type&quot;: &quot;noul&quot;,
+                &quot;instructions&quot;: &quot;Do the images show the product clearly enough to judge &quot;
+                                &quot;whether it is damaged?&quot;,
+                &quot;criteria&quot;: {
+                    &quot;true&quot;: &quot;The product is visible, in focus, and well enough lit to inspect.&quot;,
+                    &quot;false&quot;: &quot;The product is not visible, too blurry, too dark, too far away, &quot;
+                             &quot;or the images show something other than the product.&quot;,
+                },
+            },
+            &quot;damaged&quot;: {
+                &quot;type&quot;: &quot;noul&quot;,
+                &quot;instructions&quot;: &quot;Is the product in the images physically damaged?&quot;,
+                &quot;criteria&quot;: {
+                    &quot;true&quot;: &quot;Visible physical damage such as cracks, scratches, dents, &quot;
+                            &quot;deformation, or missing parts.&quot;,
+                    &quot;false&quot;: &quot;The product looks intact. Packaging wear, dust, reflections, &quot;
+                             &quot;or normal light use alone do not count as damage.&quot;,
+                },
+            },
+            &quot;damage_type&quot;: {
+                &quot;type&quot;: &quot;choice&quot;,
+                &quot;instructions&quot;: &quot;If the product is damaged, which kind of damage is the main one?&quot;,
+                &quot;criteria&quot;: DAMAGE_TYPES,
+            },
+        },
+    }
+
+
+def retry_after_seconds(resp):
+    value = resp.headers.get(&quot;Retry-After&quot;) if resp is not None else None
+    if value is None:
+        return None
+    try:
+        return max(0.0, float(value))
+    except ValueError:
+        return None
+
+
+def error_detail(resp):
+    try:
+        detail = resp.json().get(&quot;detail&quot;, {})
+        if isinstance(detail, dict):
+            return f&quot;{detail.get(&apos;error_type&apos;, &apos;&apos;)}: {detail.get(&apos;message&apos;, &apos;&apos;)}&quot;.strip(&quot;: &quot;)
+        return str(detail)
+    except ValueError:
+        return resp.text[:300]
+
+
+def call_api(session, payload, api_key, max_attempts, timeout):
+    &quot;&quot;&quot;POST to the Decisions API.
+
+    Retried (exponential backoff with jitter, honouring Retry-After):
+      - network errors: connection failures, resets, timeouts
+      - HTTP 408, 429, 500, 502, 503, 504
+    Not retried:
+      - 401, 402, 403: bad key, no credits, model not allowed. Raised as
+        FatalApiError so the run stops instead of failing every return.
+      - 400 (over token limit / rejected), 422 (invalid request or image),
+        and any other 4xx: the same request would fail again.
+      - 2xx responses that are not the expected JSON (treated as a bad answer
+        and sent to review rather than re-billed).
+    &quot;&quot;&quot;
+    headers = {&quot;Authorization&quot;: f&quot;Bearer {api_key}&quot;, &quot;Content-Type&quot;: &quot;application/json&quot;}
+    last_error = None
+    for attempt in range(1, max_attempts + 1):
+        resp = None
+        try:
+            resp = session.post(API_URL, headers=headers, json=payload, timeout=timeout)
+        except (requests.ConnectionError, requests.Timeout) as e:
+            last_error = ApiError(f&quot;network error: {e.__class__.__name__}: {e}&quot;, retryable=True)
+        else:
+            if resp.ok:
+                try:
+                    return resp.json()
+                except ValueError:
+                    raise ApiError(f&quot;non-JSON response (HTTP {resp.status_code})&quot;)
+            msg = f&quot;HTTP {resp.status_code}: {error_detail(resp)}&quot;
+            if resp.status_code in FATAL_STATUS:
+                raise FatalApiError(msg, status=resp.status_code)
+            if resp.status_code not in RETRYABLE_STATUS:
+                raise ApiError(msg, status=resp.status_code)
+            last_error = ApiError(msg, status=resp.status_code, retryable=True)
+
+        if attempt == max_attempts:
+            break
+        delay = retry_after_seconds(resp)
+        if delay is None:
+            delay = random.uniform(0, min(30.0, 1.0 * 2 ** attempt))
+        delay = min(delay, 120.0)
+        print(f&quot;  retry {attempt}/{max_attempts - 1} in {delay:.1f}s after {last_error}&quot;,
+              file=sys.stderr)
+        time.sleep(delay)
+
+    raise ApiError(f&quot;gave up after {max_attempts} attempts; last error: {last_error}&quot;,
+                   status=last_error.status if last_error else None)
+
+
+# --------------------------------------------------------------------------
+# Decision logic
+# --------------------------------------------------------------------------
+
+def decide(answers, args):
+    &quot;&quot;&quot;Turn API probabilities into damaged / not_damaged / needs_review.&quot;&quot;&quot;
+    try:
+        p_assessable = float(answers[&quot;assessable&quot;][&quot;noul&quot;])
+        p_damaged = float(answers[&quot;damaged&quot;][&quot;noul&quot;])
+        dt = answers[&quot;damage_type&quot;]
+        probs = {k: float(v) for k, v in dt.get(&quot;probabilities&quot;, {}).items()}
+        top = dt.get(&quot;choice&quot;) or max(probs, key=probs.get)
+        top_p = probs.get(top, float(dt.get(&quot;confidence&quot;, 0.0)))
+    except (KeyError, TypeError, ValueError) as e:
+        return &quot;needs_review&quot;, None, [f&quot;unexpected API response shape: {e!r}&quot;], {}
+
+    scores = {&quot;p_assessable&quot;: round(p_assessable, 3), &quot;p_damaged&quot;: round(p_damaged, 3),
+              &quot;damage_type_probabilities&quot;: {k: round(v, 3) for k, v in probs.items()}}
+    reasons = []
+
+    if p_assessable &lt; args.assessable_threshold:
+        reasons.append(f&quot;images may not show the product clearly (p={p_assessable:.2f})&quot;)
+        return &quot;needs_review&quot;, None, reasons, scores
+
+    if p_damaged &lt;= args.not_damaged_threshold:
+        return &quot;not_damaged&quot;, None, reasons, scores
+    if p_damaged &lt; args.damaged_threshold:
+        reasons.append(f&quot;damage uncertain (p_damaged={p_damaged:.2f})&quot;)
+        return &quot;needs_review&quot;, None, reasons, scores
+
+    if top == &quot;other&quot;:
+        reasons.append(&quot;damaged, but damage does not fit a known category&quot;)
+        return &quot;needs_review&quot;, None, reasons, scores
+    if top_p &lt; args.type_threshold:
+        reasons.append(f&quot;damaged, but damage type uncertain ({top} p={top_p:.2f})&quot;)
+        return &quot;needs_review&quot;, top, reasons, scores
+    return &quot;damaged&quot;, top, reasons, scores
+
+
+def check_return(session, folder, api_key, args):
+    result = {&quot;return_id&quot;: folder.name, &quot;decision&quot;: &quot;needs_review&quot;,
+              &quot;damage_type&quot;: None, &quot;reasons&quot;: [], &quot;scores&quot;: {}}
+    images, source, notes = collect_media(folder)
+    result[&quot;reasons&quot;].extend(notes)
+    if not images:
+        result[&quot;reasons&quot;].append(f&quot;no usable images (found: {source})&quot;)
+        return result
+    images = images[:MAX_API_IMAGES]
+
+    try:
+        response = call_api(session, build_request(images, source), api_key,
+                            args.max_attempts, args.timeout)
+    except FatalApiError:
+        raise
+    except ApiError as e:
+        result[&quot;reasons&quot;].append(f&quot;API error: {e}&quot;)
+        return result
+
+    decision, damage_type, reasons, scores = decide(response.get(&quot;answers&quot;, {}), args)
+    result.update(decision=decision, damage_type=damage_type, scores=scores)
+    result[&quot;reasons&quot;].extend(reasons)
+    # Anything odd about the input (unreadable photo, extra files) means a person checks.
+    if notes and decision != &quot;needs_review&quot; and any(n.startswith(&quot;unreadable&quot;) for n in notes):
+        result[&quot;decision&quot;] = &quot;needs_review&quot;
+        result[&quot;reasons&quot;].append(&quot;some photos were unreadable; decision based on partial input&quot;)
+    return result
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.split(&quot;\n\n&quot;)[0])
+    ap.add_argument(&quot;folders&quot;, nargs=&quot;+&quot;, type=Path, help=&quot;one folder per return&quot;)
+    ap.add_argument(&quot;--damaged-threshold&quot;, type=float, default=0.85,
+                    help=&quot;p_damaged at or above this counts as damaged (default 0.85)&quot;)
+    ap.add_argument(&quot;--not-damaged-threshold&quot;, type=float, default=0.15,
+                    help=&quot;p_damaged at or below this counts as not damaged (default 0.15)&quot;)
+    ap.add_argument(&quot;--type-threshold&quot;, type=float, default=0.6,
+                    help=&quot;minimum probability for the damage type (default 0.6)&quot;)
+    ap.add_argument(&quot;--assessable-threshold&quot;, type=float, default=0.7,
+                    help=&quot;minimum probability that the images are usable (default 0.7)&quot;)
+    ap.add_argument(&quot;--max-attempts&quot;, type=int, default=5)
+    ap.add_argument(&quot;--timeout&quot;, type=float, default=60.0, help=&quot;per-request timeout, seconds&quot;)
+    args = ap.parse_args()
+
+    api_key = os.environ.get(&quot;SUBQ_API_KEY&quot;)
+    if not api_key:
+        sys.exit(&quot;SUBQ_API_KEY is not set&quot;)
+
+    exit_code = 0
+    with requests.Session() as session:
+        for folder in args.folders:
+            if not folder.is_dir():
+                print(f&quot;skipping {folder}: not a directory&quot;, file=sys.stderr)
+                exit_code = 1
+                continue
+            print(f&quot;checking {folder.name}&quot;, file=sys.stderr)
+            try:
+                result = check_return(session, folder, api_key, args)
+            except FatalApiError as e:
+                print(f&quot;fatal API error, stopping: {e}&quot;, file=sys.stderr)
+                return 2
+            print(json.dumps(result), flush=True)
+    return exit_code
+
+
+if __name__ == &quot;__main__&quot;:
+    sys.exit(main())
+</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">endpoint</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched api\.subq\.ai/v1/systemone</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">model</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched subq-snap-preview</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-data-uri</span>  </summary>
+<div class="grader-body">
+<p class="explanation">pattern absent as expected</p>
+
+</div>
+</details></div>
+</div>
+</section>
+</details>
+<details class="section" open>
+<summary>Prompt</summary>
+<div class="md"><p>Customers attach up to 3 photos when they return a product. Use SubQ to decide, for each return, whether the photos show a damaged product and, if so, what kind of damage it is (cracked, scratched, dented, missing part). Write <code>check_photos.py</code> in the current directory that takes a folder of JPEG/PNG files per return. Some returns may come with a short video instead of photos. Make it robust to API errors, and say which errors it retries and which it does not. Uncertain cases should go to a person. You have no API key here, so do not run it; just write the script and tell me briefly what request format you used.</p>
+</div>
+</details>
+<details class="section" open>
+<summary>Graders — what "good" means for this case</summary>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">design</span><span class="badge">llm</span><span class="muted">weight ×2</span></div>
+<div class="md"><p>You are grading a Python script that sends product-return photos to the SubQ Decisions API.</p>
+<p>PASS only if ALL of the following hold:</p>
+<ol>
+<li>One request per return: a JSON body with <code>model</code>, <code>state</code>, a <code>questions</code> object and an <code>images</code> list holding all of that return's photos (never more than 4), each image as plain base64 with its media type (no <code>data:</code> URI prefix). One request per photo is a FAIL.</li>
+<li>The questions are typed: a noul for whether the product is damaged and a choice over the damage types that includes a no-match or "none/other" option. Answers are read from <code>answers.&lt;question name&gt;</code>.</li>
+<li>Video is not sent as video: the script samples at most 4 frames as images, or rejects/flags video for a person.</li>
+<li>Retries happen only for HTTP 429 and 5xx (and timeouts or dropped connections), with backoff; 400 and 422 are not retried and are reported (for example oversized or invalid images), and 401/402/403 stop.</li>
+<li>Uncertain results (a noul near 0.5 or low <code>confidence</code>) go to a person.</li>
+</ol>
+<p>FAIL if any item is missing or if the script uses an OpenAI-style chat request, a made-up endpoint or model name, or embeds a key.</p>
+</div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">endpoint</span><span class="badge">regex</span></div>
+<div class="config"><div class="kv"><span>target</span><code>{&quot;source&quot;:&quot;file&quot;,&quot;path&quot;:&quot;check_photos.py&quot;}</code></div><div class="kv"><span>pattern</span><code>&quot;api\\.subq\\.ai/v1/systemone&quot;</code></div><div class="kv"><span>flags</span><code>&quot;&quot;</code></div><div class="kv"><span>match</span><code>&quot;contains&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">model</span><span class="badge">regex</span></div>
+<div class="config"><div class="kv"><span>target</span><code>{&quot;source&quot;:&quot;file&quot;,&quot;path&quot;:&quot;check_photos.py&quot;}</code></div><div class="kv"><span>pattern</span><code>&quot;subq-snap-preview&quot;</code></div><div class="kv"><span>flags</span><code>&quot;&quot;</code></div><div class="kv"><span>match</span><code>&quot;contains&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">no-data-uri</span><span class="badge">regex</span></div>
+<div class="config"><div class="kv"><span>target</span><code>{&quot;source&quot;:&quot;file&quot;,&quot;path&quot;:&quot;check_photos.py&quot;}</code></div><div class="kv"><span>pattern</span><code>&quot;data:image/&quot;</code></div><div class="kv"><span>flags</span><code>&quot;&quot;</code></div><div class="kv"><span>match</span><code>&quot;not_contains&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">skill-fired</span><span class="badge">tool_used</span></div>
+<div class="config"><div class="kv"><span>tool</span><code>&quot;Skill&quot;</code></div><div class="kv"><span>input_match</span><code>&quot;\&quot;skill\&quot;\\s*:\\s*\&quot;(?:[\\w-]+:)?subq\&quot;&quot;</code></div></div>
+</div>
+</details>
+</article>
+<footer>Generated by <code>claude plugin eval</code> · schema v1 · scores are not comparable across different suites</footer>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  var bar=document.querySelector('.toolbar');
+  if(!bar)return;
+  bar.addEventListener('click',function(e){
+    var b=e.target&&e.target.closest('button');
+    if(!b)return;
+    var open=b.dataset.act==='expand';
+    document.querySelectorAll('details.section, details.grader').forEach(function(d){d.open=open});
+  });
+});
+// Collapsed details vanish from print/PDF; these pages are share artifacts.
+window.addEventListener('beforeprint',function(){
+  document.querySelectorAll('details').forEach(function(d){
+    if(!d.open){d.dataset.printOpened='1';d.open=true}
+  });
+});
+window.addEventListener('afterprint',function(){
+  document.querySelectorAll('details[data-print-opened]').forEach(function(d){
+    d.open=false;delete d.dataset.printOpened;
+  });
+});
+</script>
+</body>
+</html>

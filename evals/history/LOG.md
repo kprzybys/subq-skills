@@ -105,3 +105,21 @@ judge noise too. Honest summary of what the evals show so far, 2026-10-14:
 Next cases worth adding: a prompt without any host name ("use SubQ for ..."), an image request, a 400/422 handling
 task, and a Jev → Snap migration judged on thresholds and calibration rather than on figures.
 Raw: `2026-10-14-run5-jev-to-snap.json`, `2026-10-14-run5-jev-to-snap-report.html`.
+
+## 2026-10-14, run6 and run7 — new cases `photo-damage-no-host` and `quick-live-test`
+
+Two cases from the "next cases" list above. `photo-damage-no-host` names no host ("use SubQ to ..."), needs images
+(plain base64, at most 4, video sampled as frames) and asks which errors are retried. `quick-live-test` asks for a
+quick live check and is graded on whether the agent runs the bundled `snap_client.py` as a command behind the key
+wrapper instead of writing its own client (the CLI added in this release). Claude Code 2.1.300, 1 run per arm.
+
+- **run6** (`photo-damage-no-host`, 155 s, $0.77): with 0.6, without 1.0, Δ −0.4. The with-plugin script was sound but
+  asked one noul per damage type, which the skill recommends when labels can co-occur; the `design` rubric demanded a
+  choice. Rubric fixed to accept either; the judge also flagged the 15k-character file as long.
+- **run7** (same case, rubric fixed, 97 s, $0.46): with 1.0, without 0.0, Δ +1.0. Without the plugin the agent wrote
+  a script with an invented endpoint and model and `data:` URIs. Single runs: in run6 the no-plugin arm found the
+  right contract itself, so the true gap is somewhere between; needs three runs per arm before quoting a number.
+- **quick-live-test** could not run on this machine: a Bash-granting eval refuses to start because `~/.ssh` contains a
+  symbolic link the sandbox cannot exclude. Run it in CI or on a machine with a plain `~/.ssh`.
+
+Raw: `2026-10-14-run6-photo-damage.json`, `2026-10-14-run7-photo-damage.json` and their `-report.html`.

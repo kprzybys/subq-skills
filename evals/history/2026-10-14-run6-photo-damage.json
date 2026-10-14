@@ -1,0 +1,231 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.300",
+  "startedAt": "2026-10-14T20:11:58.364Z",
+  "durationSeconds": 155,
+  "costUsd": 0.7743226,
+  "partial": false,
+  "suite": {
+    "root": "/home/karol/subq-skills",
+    "ablation": "with-without",
+    "caseFilter": "photo-damage-no-host",
+    "threshold": 1,
+    "concurrency": 2,
+    "plugins": [
+      {
+        "name": "subq",
+        "version": "0.1.1",
+        "path": "/home/karol/subq-skills"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "photo-damage-no-host",
+      "dir": "evals/photo-damage-no-host",
+      "source": "prose",
+      "promptMarkdown": "Customers attach up to 3 photos when they return a product. Use SubQ to decide, for each return, whether the photos show a damaged product and, if so, what kind of damage it is (cracked, scratched, dented, missing part). Write `check_photos.py` in the current directory that takes a folder of JPEG/PNG files per return. Some returns may come with a short video instead of photos. Make it robust to API errors, and say which errors it retries and which it does not. Uncertain cases should go to a person. You have no API key here, so do not run it; just write the script and tell me briefly what request format you used.",
+      "runsPerCase": 1,
+      "timeoutSeconds": 600,
+      "maxTurns": 20,
+      "graders": [
+        {
+          "name": "design",
+          "type": "llm",
+          "weight": 2,
+          "graderMarkdown": "You are grading a Python script that sends product-return photos to the SubQ Decisions API.\n\nPASS only if ALL of the following hold:\n1. One request per return: a JSON body with `model`, `state`, a `questions` object and an `images` list holding all of that return's photos (never more than 4), each image as plain base64 with its media type (no `data:` URI prefix). One request per photo is a FAIL.\n2. The questions are typed: a noul for whether the product is damaged and a choice over the damage types that includes a no-match or \"none/other\" option. Answers are read from `answers.<question name>`.\n3. Video is not sent as video: the script samples at most 4 frames as images, or rejects/flags video for a person.\n4. Retries happen only for HTTP 429 and 5xx (and timeouts or dropped connections), with backoff; 400 and 422 are not retried and are reported (for example oversized or invalid images), and 401/402/403 stop.\n5. Uncertain results (a noul near 0.5 or low `confidence`) go to a person.\n\nFAIL if any item is missing or if the script uses an OpenAI-style chat request, a made-up endpoint or model name, or embeds a key.",
+          "config": {
+            "criteria": "You are grading a Python script that sends product-return photos to the SubQ Decisions API.\n\nPASS only if ALL of the following hold:\n1. One request per return: a JSON body with `model`, `state`, a `questions` object and an `images` list holding all of that return's photos (never more than 4), each image as plain base64 with its media type (no `data:` URI prefix). One request per photo is a FAIL.\n2. The questions are typed: a noul for whether the product is damaged and a choice over the damage types that includes a no-match or \"none/other\" option. Answers are read from `answers.<question name>`.\n3. Video is not sent as video: the script samples at most 4 frames as images, or rejects/flags video for a person.\n4. Retries happen only for HTTP 429 and 5xx (and timeouts or dropped connections), with backoff; 400 and 422 are not retried and are reported (for example oversized or invalid images), and 401/402/403 stop.\n5. Uncertain results (a noul near 0.5 or low `confidence`) go to a person.\n\nFAIL if any item is missing or if the script uses an OpenAI-style chat request, a made-up endpoint or model name, or embeds a key.",
+            "focus": {
+              "source": "file",
+              "path": "check_photos.py"
+            }
+          }
+        },
+        {
+          "name": "endpoint",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": {
+              "source": "file",
+              "path": "check_photos.py"
+            },
+            "pattern": "api\\.subq\\.ai/v1/systemone",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "model",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": {
+              "source": "file",
+              "path": "check_photos.py"
+            },
+            "pattern": "subq-snap-preview",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "no-data-uri",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": {
+              "source": "file",
+              "path": "check_photos.py"
+            },
+            "pattern": "data:image/",
+            "flags": "",
+            "match": "not_contains"
+          }
+        },
+        {
+          "name": "skill-fired",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?subq\""
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 0.6,
+            "passed": false,
+            "turns": 7,
+            "costUsd": 0.37867969999999995,
+            "judgeCostUsd": 0.0028355000000000003,
+            "durationSeconds": 102,
+            "startedAt": "2026-10-14T20:11:58.451Z",
+            "error": null,
+            "tracePath": "/tmp/claude-eval-rrsi17/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "design",
+                "passed": false,
+                "weight": 2,
+                "explanation": "judge votes: FAIL FAIL FAIL — note: long file (15166 chars); llm judges are noisy on long inputs, prefer a regex grader for large artifacts",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "\"\"\"Check return photos for product damage with SubQ Snap (POST /v1/systemone).\n\nUsage:\n    SUBQ_API_KEY=... python3 check_photos.py RETURN_DIR [RETURN_DIR ...]\n\nEach RETURN_DIR holds the files for one return: up to 3 JPEG/PNG photos, or a short video\n(mp4/mov/webm/mkv/avi/m4v) when there are no photos. For a video, 4 frames are sampled with\nffmpeg (must be on PATH), because the API does not accept video.\n\nOutput: one JSON line per return on stdout, with the raw probabilities kept so thresholds can be\nchanged later without calling the API again:\n    {\"return\": ..., \"status\": \"damaged\" | \"not_damaged\" | \"needs_review\" | \"error\",\n     \"damage_types\": [...], \"reasons\": [...], \"probabilities\": {...}, \"input_tokens\": ...}\n\"needs_review\" and \"error\" both mean a person must look at the return.\n\nError handling:\n- Retried with exponential backoff and full jitter (bounded attempts): HTTP 429 (rate limit),\n  HTTP 5xx (503 = temporarily unavailable), timeouts and dropped connections. A decision request\n  has no side effects, so resending one whose outcome is unknown is safe.\n- Not retried, that return goes to a person: HTTP 400 (input rejected or too large) and\n  422 (invalid request or image). Resending the same request would give the same answer.\n- Not retried, the whole run stops: HTTP 401 (bad key), 402 (no credits), 403 (key cannot use\n  the model), and any redirect (never followed, so the key is never sent to another host).\n  These would fail every remaining return the same way.\n\nExit codes: 0 all returns decided automatically, 1 at least one return needs a person or failed,\n2 the run was stopped by an auth/credit error or bad usage.\n\nThe thresholds below are placeholders: calibrate them on returns whose outcome you already know.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport argparse\nimport base64\nimport http.client\nimport io\nimport json\nimport os\nimport random\nimport shutil\nimport subprocess\nimport sys\nimport time\nimport urllib.error\nimport urllib.request\nfrom pathlib import Path\n\nURL = \"https://api.subq.ai/v1/systemone\"\nMODEL = \"subq-snap-preview\"\n\nATTEMPTS = 5\nTIMEOUT_S = 60.0\nBASE_DELAY_S = 1.0\nMAX_DELAY_S = 30.0\n\nMAX_PHOTOS = 3  # what customers may attach; the API itself allows 4\nVIDEO_FRAMES = 4\nMAX_IMAGE_BYTES = 4 * 1024 * 1024  # API limit per decoded image\nMAX_TOTAL_BYTES = 8 * 1024 * 1024  # API limit for all images together\nMAX_SIDE_PX = 1600  # images larger than this are shrunk when Pillow is installed\n\n# Placeholder thresholds; tune on labelled returns.\nCLEAR_YES = 0.80  # noul at or above: treat as yes\nCLEAR_NO = 0.20  # noul at or below: treat as no; anything between goes to a person\nJUDGEABLE_MIN = 0.70  # below: photos do not show the product well enough to decide\n\nPHOTO_EXTS = {\".jpg\", \".jpeg\", \".png\"}\nVIDEO_EXTS = {\".mp4\", \".mov\", \".m4v\", \".webm\", \".mkv\", \".avi\"}\n\nDAMAGE_TYPES = {\n    \"cracked\": \"The product has a crack, fracture, break or shattered area (for example a cracked \"\n    \"screen, casing or glass).\",\n    \"scratched\": \"The product surface has scratches, scuffs or abrasion marks, without a crack or dent.\",\n    \"dented\": \"The product has a dent, bend, crush mark or other deformation of its shape.\",\n    \"missing_part\": \"A part, component or accessory that belongs to the product is visibly missing or \"\n    \"detached (for example a missing button, cap, leg, cable or lid).\",\n}\n\nQUESTIONS: dict = {\n    \"judgeable\": {\n        \"type\": \"noul\",\n        \"instructions\": \"Do the images show the returned product clearly enough (in focus, lit, product \"\n        \"in frame) to judge whether it is damaged?\",\n        \"criteria\": {\n            \"true\": \"The product is visible clearly enough to see whether it is damaged.\",\n            \"false\": \"Blurry, too dark, product missing or only partly in frame, or the images show \"\n            \"something other than a product.\",\n        },\n    },\n    \"damaged\": {\n        \"type\": \"noul\",\n        \"instructions\": \"Do the images show physical damage to the returned product? Ignore packaging, \"\n        \"dust, reflections and normal glare.\",\n        \"criteria\": {\n            \"true\": \"The product itself is visibly damaged: cracked, scratched, dented, broken or missing a part.\",\n            \"false\": \"The product looks intact, with no visible physical damage.\",\n        },\n    },\n}\nfor _name, _desc in DAMAGE_TYPES.items():\n    QUESTIONS[_name] = {\n        \"type\": \"noul\",\n        \"instructions\": f\"Looking only at the product in the images: {_desc.split(' (')[0]}?\",\n        \"criteria\": {\"true\": _desc, \"false\": \"No damage of this kind is visible on the product.\"},\n    }\n\n\n# --------------------------------------------------------------------------- API client\n\n\nclass SnapError(Exception):\n    \"\"\"No decision was produced. `status` is the HTTP status, or None for a network failure.\"\"\"\n\n    def __init__(self, status: int | None, error_type: str, message: str) -> None:\n        super().__init__(f\"{status} {error_type}: {message}\")\n        self.status = status\n        self.error_type = error_type\n\n\nclass FatalSnapError(SnapError):\n    \"\"\"Auth, credit or redirect problem: every further request would fail too.\"\"\"\n\n\nclass _NoRedirect(urllib.request.HTTPRedirectHandler):\n    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001\n        return None  # urllib raises HTTPError for the 3xx, so the key is not resent elsewhere\n\n\n_OPENER = urllib.request.build_opener(_NoRedirect)\n\n\ndef _error_detail(e: urllib.error.HTTPError) -> dict:\n    try:\n        payload = json.load(e)\n    except (ValueError, OSError, http.client.HTTPException):\n        return {\"error_type\": \"http_error\", \"message\": \"\"}\n    detail = payload.get(\"detail\") if isinstance(payload, dict) else None\n    return detail if isinstance(detail, dict) else {\"error_type\": \"http_error\", \"message\": str(payload)[:200]}\n\n\ndef decide(key: str, state: dict, questions: dict, images: list[dict]) -> dict:\n    body = json.dumps({\"model\": MODEL, \"state\": state, \"questions\": questions, \"images\": images}).encode()\n    headers = {\"Authorization\": f\"Bearer {key}\", \"Content-Type\": \"application/json\"}\n    for attempt in range(ATTEMPTS):\n        last = attempt == ATTEMPTS - 1\n        try:\n            request = urllib.request.Request(URL, data=body, headers=headers)\n            with _OPENER.open(request, timeout=TIMEOUT_S) as response:\n                return json.load(response)\n        except urllib.error.HTTPError as e:\n            d = _error_detail(e)\n            err_type, msg = d.get(\"error_type\", \"http_error\"), d.get(\"message\", \"\")\n            if e.code in (401, 402, 403) or 300 <= e.code < 400:\n                raise FatalSnapError(e.code, err_type, msg) from e\n            if not (e.code == 429 or e.code >= 500) or last:\n                raise SnapError(e.code, err_type, msg) from e\n        except (OSError, http.client.HTTPException, ValueError) as e:\n            # URLError, timeouts, resets, truncated or non-JSON bodies: outcome unknown, safe to retry.\n            if last:\n                raise SnapError(None, \"network\", f\"{type(e).__name__}: {e}\") from e\n        time.sleep(random.uniform(0, min(MAX_DELAY_S, BASE_DELAY_S * 2**attempt)))\n    raise SnapError(None, \"internal\", \"retry loop ended without a result\")\n\n\n# --------------------------------------------------------------------------- inputs\n\n\nclass InputProblem(Exception):\n    \"\"\"The return's files cannot be sent as-is; a person should look at them.\"\"\"\n\n\ndef _media_type(data: bytes) -> str | None:\n    if data.startswith(b\"\\xff\\xd8\\xff\"):\n        return \"image/jpeg\"\n    if data.startswith(b\"\\x89PNG\\r\\n\\x1a\\n\"):\n        return \"image/png\"\n    return None\n\n\ndef _shrink(data: bytes) -> bytes:\n    \"\"\"Re-encode as JPEG no larger than MAX_SIDE_PX; needs Pillow.\"\"\"\n    try:\n        from PIL import Image, ImageOps\n    except ImportError as e:\n        raise InputProblem(\"image over 4 MiB and Pillow is not installed to shrink it\") from e\n    with Image.open(io.BytesIO(data)) as img:\n        img = ImageOps.exif_transpose(img).convert(\"RGB\")\n        img.thumbnail((MAX_SIDE_PX, MAX_SIDE_PX))\n        out = io.BytesIO()\n        img.save(out, format=\"JPEG\", quality=85)\n        return out.getvalue()\n\n\ndef _image_entry(data: bytes, label: str) -> dict:\n    media = _media_type(data)\n    if media is None:\n        raise InputProblem(f\"{label} is not a JPEG or PNG\")\n    if len(data) > MAX_IMAGE_BYTES:\n        data, media = _shrink(data), \"image/jpeg\"\n        if len(data) > MAX_IMAGE_BYTES:\n            raise InputProblem(f\"{label} is still over 4 MiB after shrinking\")\n    return {\"mediaType\": media, \"base64\": base64.b64encode(data).decode(\"ascii\"), \"_size\": len(data)}\n\n\ndef _run(cmd: list[str], timeout: float) -> bytes:\n    try:\n        return subprocess.run(cmd, capture_output=True, check=True, timeout=timeout).stdout\n    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as e:\n        raise InputProblem(f\"could not read video: {type(e).__name__}\") from e\n\n\ndef _video_frames(path: Path) -> list[bytes]:\n    if not (shutil.which(\"ffmpeg\") and shutil.which(\"ffprobe\")):\n        raise InputProblem(\"video received but ffmpeg/ffprobe is not installed\")\n    src = f\"file:{path.resolve()}\"  # \"file:\" stops ffmpeg from treating the name as a protocol or option\n    out = _run([\"ffprobe\", \"-v\", \"error\", \"-show_entries\", \"format=duration\", \"-of\", \"csv=p=0\", src], 30)\n    try:\n        duration = float(out.strip())\n    except ValueError as e:\n        raise InputProblem(\"could not read video duration\") from e\n    if duration <= 0:\n        raise InputProblem(\"video has no duration\")\n    frames = []\n    for i in range(1, VIDEO_FRAMES + 1):\n        t = duration * i / (VIDEO_FRAMES + 1)  # evenly spaced, skipping the very start and end\n        frame = _run(\n            [\"ffmpeg\", \"-v\", \"error\", \"-ss\", f\"{t:.3f}\", \"-i\", src, \"-frames:v\", \"1\",\n             \"-vf\", f\"scale='min({MAX_SIDE_PX},iw)':-2\", \"-q:v\", \"3\", \"-f\", \"image2\", \"-c:v\", \"mjpeg\", \"pipe:1\"],\n            60,\n        )\n        if frame:\n            frames.append(frame)\n    if not frames:\n        raise InputProblem(\"no frames could be extracted from the video\")\n    return frames\n\n\ndef load_images(folder: Path) -> tuple[list[dict], str]:\n    \"\"\"Return (API image entries, source description). Raises InputProblem for a person to handle.\"\"\"\n    files = sorted(p for p in folder.iterdir() if p.is_file() and not p.name.startswith(\".\"))\n    photos = [p for p in files if p.suffix.lower() in PHOTO_EXTS]\n    videos = [p for p in files if p.suffix.lower() in VIDEO_EXTS]\n\n    if photos:\n        if len(photos) > MAX_PHOTOS:\n            raise InputProblem(f\"{len(photos)} photos, more than the {MAX_PHOTOS} allowed\")\n        images = [_image_entry(p.read_bytes(), p.name) for p in photos]\n        source = f\"{len(images)} customer photo(s)\" + (\" (a video was also attached and ignored)\" if videos else \"\")\n    elif videos:\n        if len(videos) > 1:\n            raise InputProblem(f\"{len(videos)} videos attached, expected one\")\n        images = [_image_entry(f, f\"{videos[0].name} frame {i}\") for i, f in enumerate(_video_frames(videos[0]), 1)]\n        source = f\"{len(images)} frames sampled evenly from a customer video\"\n    else:\n        raise InputProblem(\"no JPEG/PNG photos or video found\")\n\n    if sum(img[\"_size\"] for img in images) > MAX_TOTAL_BYTES:\n        raise InputProblem(\"images together exceed 8 MiB\")\n    for img in images:\n        del img[\"_size\"]\n    return images, source\n\n\n# --------------------------------------------------------------------------- decision\n\n\ndef classify(answers: dict) -> tuple[str, list[str], list[str], dict]:\n    \"\"\"Turn answers into (status, damage_types, reasons, probabilities). Code owns these rules.\"\"\"\n    probs = {name: answers[name][\"noul\"] for name in QUESTIONS}\n    reasons = []\n\n    if probs[\"judgeable\"] < JUDGEABLE_MIN:\n        return \"needs_review\", [], [\"photos may not show the product clearly\"], probs\n\n    damaged = probs[\"damaged\"]\n    types = [t for t in DAMAGE_TYPES if probs[t] >= CLEAR_YES]\n    unsure_types = [t for t in DAMAGE_TYPES if CLEAR_NO < probs[t] < CLEAR_YES]\n\n    if CLEAR_NO < damaged < CLEAR_YES:\n        reasons.append(f\"unsure whether the product is damaged (p={damaged:.2f})\")\n    elif damaged >= CLEAR_YES:\n        if not types:\n            reasons.append(\"damage seen but no clear damage type\")\n        if unsure_types:\n            reasons.append(\"unsure about damage type(s): \" + \", \".join(unsure_types))\n    elif types:  # damaged is a clear no, yet some type is a clear yes\n        reasons.append(\"conflicting answers: no damage overall but \" + \", \".join(types))\n\n    if reasons:\n        return \"needs_review\", types, reasons, probs\n    return (\"damaged\" if damaged >= CLEAR_YES else \"not_damaged\"), types, [], probs\n\n\ndef check_return(key: str, folder: Path) -> dict:\n    result: dict = {\"return\": folder.name, \"path\": str(folder)}\n    try:\n        images, source = load_images(folder)\n    except (InputProblem, OSError) as e:\n        return {**result, \"status\": \"needs_review\", \"damage_types\": [], \"reasons\": [str(e)]}\n\n    state = {\n        \"task\": \"Inspect a product a customer is returning and judge its physical condition.\",\n        \"images\": source,\n        \"note\": \"All images show the same returned item; judge the product, not the packaging or background.\",\n    }\n    try:\n        response = decide(key, state, QUESTIONS, images)\n    except FatalSnapError:\n        raise\n    except SnapError as e:\n        return {**result, \"status\": \"error\", \"damage_types\": [], \"reasons\": [f\"API error, not decided: {e}\"]}\n\n    try:\n        status, types, reasons, probs = classify(response[\"answers\"])\n    except (KeyError, TypeError) as e:\n        return {**result, \"status\": \"error\", \"damage_types\": [], \"reasons\": [f\"unexpected response shape: {e!r}\"]}\n    return {\n        **result,\n        \"status\": status,\n        \"damage_types\": types,\n        \"reasons\": reasons,\n        \"source\": source,\n        \"probabilities\": probs,\n        \"input_tokens\": response.get(\"usage\", {}).get(\"input_tokens\"),\n    }\n\n\ndef main(argv: list[str] | None = None) -> int:\n    parser = argparse.ArgumentParser(description=\"Check customer return photos for damage with SubQ Snap.\")\n    parser.add_argument(\"returns\", nargs=\"+\", type=Path, help=\"one folder per return\")\n    args = parser.parse_args(argv)\n\n    key = os.environ.get(\"SUBQ_API_KEY\")\n    if not key:\n        print(\"check_photos: SUBQ_API_KEY is not set\", file=sys.stderr)\n        return 2\n\n    needs_person = False\n    for folder in args.returns:\n        if not folder.is_dir():\n            row = {\"return\": folder.name, \"path\": str(folder), \"status\": \"needs_review\",\n                   \"damage_types\": [], \"reasons\": [\"not a folder\"]}\n        else:\n            try:\n                row = check_return(key, folder)\n            except FatalSnapError as e:\n                print(f\"check_photos: stopping, {e}\", file=sys.stderr)\n                return 2\n        needs_person |= row[\"status\"] in (\"needs_review\", \"error\")\n        print(json.dumps(row, ensure_ascii=False), flush=True)\n    return 1 if needs_person else 0\n\n\nif __name__ == \"__main__\":\n    sys.exit(main())\n"
+              },
+              {
+                "name": "endpoint",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched api\\.subq\\.ai/v1/systemone",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "model",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched subq-snap-preview",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-data-uri",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 12,
+            "costUsd": 0.3956429,
+            "judgeCostUsd": 0.0030090000000000004,
+            "durationSeconds": 155,
+            "startedAt": "2026-10-14T20:11:58.452Z",
+            "error": null,
+            "tracePath": "/tmp/claude-eval-0TcN3g/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "design",
+                "passed": true,
+                "weight": 2,
+                "explanation": "judge votes: PASS PASS PASS — note: long file (16088 chars); llm judges are noisy on long inputs, prefer a regex grader for large artifacts",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "#!/usr/bin/env python3\n\"\"\"Classify product-return photos for damage with the SubQ Decisions API.\n\nUsage:\n    export SUBQ_API_KEY=...\n    python check_photos.py RETURN_DIR [RETURN_DIR ...]\n    python check_photos.py returns/*/          # one folder per return\n\nEach RETURN_DIR holds the customer's media for one return: up to 3 JPEG/PNG\nphotos, or a short video (frames are sampled with ffmpeg, because the API\ndoes not accept video). Writes one JSON object per return to stdout:\n\n    {\"return_id\": \"...\", \"decision\": \"damaged\" | \"not_damaged\" | \"needs_review\",\n     \"damage_type\": \"cracked\" | \"scratched\" | \"dented\" | \"missing_part\" | null,\n     \"reasons\": [...], \"scores\": {...}}\n\nAnything uncertain, unreadable, or that failed at the API ends up as\n\"needs_review\" so a person looks at it.\n\nRequires: requests, Pillow; ffmpeg/ffprobe on PATH for video returns.\n\"\"\"\n\nimport argparse\nimport base64\nimport io\nimport json\nimport os\nimport random\nimport shutil\nimport subprocess\nimport sys\nimport tempfile\nimport time\nfrom pathlib import Path\n\nimport requests\nfrom PIL import Image, ImageOps, UnidentifiedImageError\n\nAPI_URL = \"https://api.subq.ai/v1/systemone\"\nMODEL = \"subq-snap-preview\"\n\nPHOTO_EXTS = {\".jpg\", \".jpeg\", \".png\"}\nVIDEO_EXTS = {\".mp4\", \".mov\", \".m4v\", \".webm\", \".avi\", \".mkv\"}\nMAX_PHOTOS = 3          # what customers are allowed to attach\nMAX_API_IMAGES = 4      # API limit per request\nVIDEO_FRAMES = 4\n\n# API limits: 4 MiB per image, 8 MiB total (decoded). Stay well under both.\nMAX_SIDE_PX = 2048\nMAX_IMAGE_BYTES = 1_900_000\n\nDAMAGE_TYPES = {\n    \"cracked\": \"The product or a part of it has a crack, fracture, or shattered area.\",\n    \"scratched\": \"The surface has scratches, scuffs, or abrasion marks, but is not cracked or deformed.\",\n    \"dented\": \"The product is dented, bent, crushed, or otherwise deformed.\",\n    \"missing_part\": \"A component, piece, or accessory that should be attached or present is missing.\",\n    \"other\": \"Damage that does not fit any of the categories above, or several kinds with none dominant.\",\n}\n\n# HTTP statuses worth retrying: rate limiting and transient server trouble.\nRETRYABLE_STATUS = {408, 429, 500, 502, 503, 504}\n# Account-level problems: every following request would fail the same way.\nFATAL_STATUS = {401, 402, 403}\n\n\nclass ApiError(Exception):\n    def __init__(self, message, status=None, retryable=False):\n        super().__init__(message)\n        self.status = status\n        self.retryable = retryable\n\n\nclass FatalApiError(ApiError):\n    \"\"\"Stop the whole run (bad key, no credits, no model access).\"\"\"\n\n\n# --------------------------------------------------------------------------\n# Media preparation\n# --------------------------------------------------------------------------\n\ndef encode_image(img):\n    \"\"\"Normalise a PIL image to an API-ready JPEG under the size limits.\"\"\"\n    img = ImageOps.exif_transpose(img)\n    if img.mode != \"RGB\":\n        img = img.convert(\"RGB\")\n    img.thumbnail((MAX_SIDE_PX, MAX_SIDE_PX))\n    for quality in (90, 80, 70, 60, 50):\n        buf = io.BytesIO()\n        img.save(buf, format=\"JPEG\", quality=quality)\n        if buf.tell() <= MAX_IMAGE_BYTES:\n            break\n    else:\n        img.thumbnail((MAX_SIDE_PX // 2, MAX_SIDE_PX // 2))\n        buf = io.BytesIO()\n        img.save(buf, format=\"JPEG\", quality=70)\n    return {\"mediaType\": \"image/jpeg\",\n            \"base64\": base64.b64encode(buf.getvalue()).decode(\"ascii\")}\n\n\ndef load_photo(path):\n    with Image.open(path) as img:\n        img.load()\n        return encode_image(img)\n\n\ndef sample_video_frames(path, n=VIDEO_FRAMES):\n    \"\"\"Grab n evenly spaced frames from a video with ffmpeg.\"\"\"\n    if not shutil.which(\"ffmpeg\") or not shutil.which(\"ffprobe\"):\n        raise RuntimeError(\"ffmpeg/ffprobe not installed; cannot read video\")\n    probe = subprocess.run(\n        [\"ffprobe\", \"-v\", \"error\", \"-show_entries\", \"format=duration\",\n         \"-of\", \"default=noprint_wrappers=1:nokey=1\", str(path)],\n        capture_output=True, text=True, timeout=60)\n    try:\n        duration = float(probe.stdout.strip())\n    except ValueError:\n        raise RuntimeError(f\"cannot read video duration: {probe.stderr.strip()[:200]}\")\n    if duration <= 0:\n        raise RuntimeError(\"video has zero duration\")\n\n    frames = []\n    with tempfile.TemporaryDirectory() as tmp:\n        for i in range(n):\n            t = duration * (2 * i + 1) / (2 * n)   # midpoints of n equal slices\n            out = Path(tmp) / f\"frame{i}.png\"\n            subprocess.run(\n                [\"ffmpeg\", \"-v\", \"error\", \"-y\", \"-ss\", f\"{t:.3f}\", \"-i\", str(path),\n                 \"-frames:v\", \"1\", str(out)],\n                capture_output=True, timeout=120)\n            if out.exists():\n                with Image.open(out) as img:\n                    img.load()\n                    frames.append(encode_image(img))\n    if not frames:\n        raise RuntimeError(\"could not extract any frames from video\")\n    return frames\n\n\ndef collect_media(folder):\n    \"\"\"Return (images, source_description, notes) for one return folder.\"\"\"\n    files = sorted(p for p in folder.iterdir() if p.is_file() and not p.name.startswith(\".\"))\n    photos = [p for p in files if p.suffix.lower() in PHOTO_EXTS]\n    videos = [p for p in files if p.suffix.lower() in VIDEO_EXTS]\n    ignored = [p.name for p in files if p not in photos and p not in videos]\n\n    notes = []\n    if ignored:\n        notes.append(f\"ignored unsupported files: {', '.join(ignored)}\")\n\n    if photos:\n        if len(photos) > MAX_PHOTOS:\n            notes.append(f\"{len(photos)} photos found, expected at most {MAX_PHOTOS}; \"\n                         f\"using the first {MAX_PHOTOS}\")\n            photos = photos[:MAX_PHOTOS]\n        if videos:\n            notes.append(\"photos and video both present; used photos only\")\n        images = []\n        for p in photos:\n            try:\n                images.append(load_photo(p))\n            except (UnidentifiedImageError, OSError) as e:\n                notes.append(f\"unreadable photo {p.name}: {e}\")\n        return images, f\"{len(images)} customer photo(s)\", notes\n\n    if videos:\n        if len(videos) > 1:\n            notes.append(f\"{len(videos)} videos found; used {videos[0].name}\")\n        try:\n            frames = sample_video_frames(videos[0])\n        except (RuntimeError, OSError, subprocess.SubprocessError, UnidentifiedImageError) as e:\n            notes.append(f\"video {videos[0].name}: {e}\")\n            return [], \"video\", notes\n        return frames, f\"{len(frames)} frames sampled in time order from a customer video\", notes\n\n    return [], \"nothing\", notes\n\n\n# --------------------------------------------------------------------------\n# API call with retries\n# --------------------------------------------------------------------------\n\ndef build_request(images, source):\n    return {\n        \"model\": MODEL,\n        \"state\": (\n            \"A customer is returning a product and attached images of it. \"\n            f\"The images are {source}. All images show the same returned item. \"\n            \"Judge only what is visible in the images.\"\n        ),\n        \"images\": images,\n        \"questions\": {\n            \"assessable\": {\n                \"type\": \"noul\",\n                \"instructions\": \"Do the images show the product clearly enough to judge \"\n                                \"whether it is damaged?\",\n                \"criteria\": {\n                    \"true\": \"The product is visible, in focus, and well enough lit to inspect.\",\n                    \"false\": \"The product is not visible, too blurry, too dark, too far away, \"\n                             \"or the images show something other than the product.\",\n                },\n            },\n            \"damaged\": {\n                \"type\": \"noul\",\n                \"instructions\": \"Is the product in the images physically damaged?\",\n                \"criteria\": {\n                    \"true\": \"Visible physical damage such as cracks, scratches, dents, \"\n                            \"deformation, or missing parts.\",\n                    \"false\": \"The product looks intact. Packaging wear, dust, reflections, \"\n                             \"or normal light use alone do not count as damage.\",\n                },\n            },\n            \"damage_type\": {\n                \"type\": \"choice\",\n                \"instructions\": \"If the product is damaged, which kind of damage is the main one?\",\n                \"criteria\": DAMAGE_TYPES,\n            },\n        },\n    }\n\n\ndef retry_after_seconds(resp):\n    value = resp.headers.get(\"Retry-After\") if resp is not None else None\n    if value is None:\n        return None\n    try:\n        return max(0.0, float(value))\n    except ValueError:\n        return None\n\n\ndef error_detail(resp):\n    try:\n        detail = resp.json().get(\"detail\", {})\n        if isinstance(detail, dict):\n            return f\"{detail.get('error_type', '')}: {detail.get('message', '')}\".strip(\": \")\n        return str(detail)\n    except ValueError:\n        return resp.text[:300]\n\n\ndef call_api(session, payload, api_key, max_attempts, timeout):\n    \"\"\"POST to the Decisions API.\n\n    Retried (exponential backoff with jitter, honouring Retry-After):\n      - network errors: connection failures, resets, timeouts\n      - HTTP 408, 429, 500, 502, 503, 504\n    Not retried:\n      - 401, 402, 403: bad key, no credits, model not allowed. Raised as\n        FatalApiError so the run stops instead of failing every return.\n      - 400 (over token limit / rejected), 422 (invalid request or image),\n        and any other 4xx: the same request would fail again.\n      - 2xx responses that are not the expected JSON (treated as a bad answer\n        and sent to review rather than re-billed).\n    \"\"\"\n    headers = {\"Authorization\": f\"Bearer {api_key}\", \"Content-Type\": \"application/json\"}\n    last_error = None\n    for attempt in range(1, max_attempts + 1):\n        resp = None\n        try:\n            resp = session.post(API_URL, headers=headers, json=payload, timeout=timeout)\n        except (requests.ConnectionError, requests.Timeout) as e:\n            last_error = ApiError(f\"network error: {e.__class__.__name__}: {e}\", retryable=True)\n        else:\n            if resp.ok:\n                try:\n                    return resp.json()\n                except ValueError:\n                    raise ApiError(f\"non-JSON response (HTTP {resp.status_code})\")\n            msg = f\"HTTP {resp.status_code}: {error_detail(resp)}\"\n            if resp.status_code in FATAL_STATUS:\n                raise FatalApiError(msg, status=resp.status_code)\n            if resp.status_code not in RETRYABLE_STATUS:\n                raise ApiError(msg, status=resp.status_code)\n            last_error = ApiError(msg, status=resp.status_code, retryable=True)\n\n        if attempt == max_attempts:\n            break\n        delay = retry_after_seconds(resp)\n        if delay is None:\n            delay = random.uniform(0, min(30.0, 1.0 * 2 ** attempt))\n        delay = min(delay, 120.0)\n        print(f\"  retry {attempt}/{max_attempts - 1} in {delay:.1f}s after {last_error}\",\n              file=sys.stderr)\n        time.sleep(delay)\n\n    raise ApiError(f\"gave up after {max_attempts} attempts; last error: {last_error}\",\n                   status=last_error.status if last_error else None)\n\n\n# --------------------------------------------------------------------------\n# Decision logic\n# --------------------------------------------------------------------------\n\ndef decide(answers, args):\n    \"\"\"Turn API probabilities into damaged / not_damaged / needs_review.\"\"\"\n    try:\n        p_assessable = float(answers[\"assessable\"][\"noul\"])\n        p_damaged = float(answers[\"damaged\"][\"noul\"])\n        dt = answers[\"damage_type\"]\n        probs = {k: float(v) for k, v in dt.get(\"probabilities\", {}).items()}\n        top = dt.get(\"choice\") or max(probs, key=probs.get)\n        top_p = probs.get(top, float(dt.get(\"confidence\", 0.0)))\n    except (KeyError, TypeError, ValueError) as e:\n        return \"needs_review\", None, [f\"unexpected API response shape: {e!r}\"], {}\n\n    scores = {\"p_assessable\": round(p_assessable, 3), \"p_damaged\": round(p_damaged, 3),\n              \"damage_type_probabilities\": {k: round(v, 3) for k, v in probs.items()}}\n    reasons = []\n\n    if p_assessable < args.assessable_threshold:\n        reasons.append(f\"images may not show the product clearly (p={p_assessable:.2f})\")\n        return \"needs_review\", None, reasons, scores\n\n    if p_damaged <= args.not_damaged_threshold:\n        return \"not_damaged\", None, reasons, scores\n    if p_damaged < args.damaged_threshold:\n        reasons.append(f\"damage uncertain (p_damaged={p_damaged:.2f})\")\n        return \"needs_review\", None, reasons, scores\n\n    if top == \"other\":\n        reasons.append(\"damaged, but damage does not fit a known category\")\n        return \"needs_review\", None, reasons, scores\n    if top_p < args.type_threshold:\n        reasons.append(f\"damaged, but damage type uncertain ({top} p={top_p:.2f})\")\n        return \"needs_review\", top, reasons, scores\n    return \"damaged\", top, reasons, scores\n\n\ndef check_return(session, folder, api_key, args):\n    result = {\"return_id\": folder.name, \"decision\": \"needs_review\",\n              \"damage_type\": None, \"reasons\": [], \"scores\": {}}\n    images, source, notes = collect_media(folder)\n    result[\"reasons\"].extend(notes)\n    if not images:\n        result[\"reasons\"].append(f\"no usable images (found: {source})\")\n        return result\n    images = images[:MAX_API_IMAGES]\n\n    try:\n        response = call_api(session, build_request(images, source), api_key,\n                            args.max_attempts, args.timeout)\n    except FatalApiError:\n        raise\n    except ApiError as e:\n        result[\"reasons\"].append(f\"API error: {e}\")\n        return result\n\n    decision, damage_type, reasons, scores = decide(response.get(\"answers\", {}), args)\n    result.update(decision=decision, damage_type=damage_type, scores=scores)\n    result[\"reasons\"].extend(reasons)\n    # Anything odd about the input (unreadable photo, extra files) means a person checks.\n    if notes and decision != \"needs_review\" and any(n.startswith(\"unreadable\") for n in notes):\n        result[\"decision\"] = \"needs_review\"\n        result[\"reasons\"].append(\"some photos were unreadable; decision based on partial input\")\n    return result\n\n\ndef main():\n    ap = argparse.ArgumentParser(description=__doc__.split(\"\\n\\n\")[0])\n    ap.add_argument(\"folders\", nargs=\"+\", type=Path, help=\"one folder per return\")\n    ap.add_argument(\"--damaged-threshold\", type=float, default=0.85,\n                    help=\"p_damaged at or above this counts as damaged (default 0.85)\")\n    ap.add_argument(\"--not-damaged-threshold\", type=float, default=0.15,\n                    help=\"p_damaged at or below this counts as not damaged (default 0.15)\")\n    ap.add_argument(\"--type-threshold\", type=float, default=0.6,\n                    help=\"minimum probability for the damage type (default 0.6)\")\n    ap.add_argument(\"--assessable-threshold\", type=float, default=0.7,\n                    help=\"minimum probability that the images are usable (default 0.7)\")\n    ap.add_argument(\"--max-attempts\", type=int, default=5)\n    ap.add_argument(\"--timeout\", type=float, default=60.0, help=\"per-request timeout, seconds\")\n    args = ap.parse_args()\n\n    api_key = os.environ.get(\"SUBQ_API_KEY\")\n    if not api_key:\n        sys.exit(\"SUBQ_API_KEY is not set\")\n\n    exit_code = 0\n    with requests.Session() as session:\n        for folder in args.folders:\n            if not folder.is_dir():\n                print(f\"skipping {folder}: not a directory\", file=sys.stderr)\n                exit_code = 1\n                continue\n            print(f\"checking {folder.name}\", file=sys.stderr)\n            try:\n                result = check_return(session, folder, api_key, args)\n            except FatalApiError as e:\n                print(f\"fatal API error, stopping: {e}\", file=sys.stderr)\n                return 2\n            print(json.dumps(result), flush=True)\n    return exit_code\n\n\nif __name__ == \"__main__\":\n    sys.exit(main())\n"
+              },
+              {
+                "name": "endpoint",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched api\\.subq\\.ai/v1/systemone",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "model",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched subq-snap-preview",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-data-uri",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 0.6,
+        "passRate": 0,
+        "scoreWithout": 1,
+        "passRateWithout": 1,
+        "delta": -0.4
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 1,
+    "casesPassed": 0,
+    "overallScore": 0.6,
+    "overallPassRate": 0,
+    "meanDelta": -0.4
+  }
+}

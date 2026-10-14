@@ -1,6 +1,9 @@
 # Changelog
 
 ## Unreleased
+- Evals: new cases `photo-damage-no-host` (no host name in the prompt, images, 400/422 handling) and
+  `quick-live-test` (uses the bundled client and the key wrapper instead of new glue code); `jev-to-snap` rubric
+  follows the reworded Jev limits; runs 6–7 in `evals/history/LOG.md`.
 - Skill: the Snap vs Jev table and benchmarks moved to `references/snap-vs-jev.md`; SKILL.md keeps the switch
   summary and says when to read the reference (about 300 fewer words loaded on every use).
 - Example client is now a command: `snap_client.py request.json|-` prints the response JSON, `--demo` sends the
