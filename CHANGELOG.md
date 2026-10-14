@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+- Skill: the Snap vs Jev table and benchmarks moved to `references/snap-vs-jev.md`; SKILL.md keeps the switch
+  summary and says when to read the reference (about 300 fewer words loaded on every use).
 - Example client is now a command: `snap_client.py request.json|-` prints the response JSON, `--demo` sends the
   built-in request, exit codes 0/1/2; the skill tells the agent to use it instead of writing glue code; 6 new tests.
 - Skill: Jev limits follow the reworded TypeSafe models page (per-request and per-question context, no separate
