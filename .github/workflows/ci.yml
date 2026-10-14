@@ -1,0 +1,23 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Unit tests (example client)
+        run: python3 -m unittest test_snap_client
+        working-directory: skills/subq/examples
+      - name: Lint
+        run: |
+          python3 -m pip install --quiet ruff
+          ruff check --select E,F,W,I,B,UP,N --line-length 120 skills scripts evals/history
+      - name: Validate plugin manifests
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          claude plugin validate .

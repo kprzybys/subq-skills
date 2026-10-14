@@ -6,7 +6,7 @@
   "costUsd": 1.2134529,
   "partial": false,
   "suite": {
-    "root": "/home/karol/subq-skills",
+    "root": "<repo>",
     "ablation": "with-without",
     "threshold": 1,
     "concurrency": 3,
@@ -14,7 +14,7 @@
       {
         "name": "subq",
         "version": "0.1.0",
-        "path": "/home/karol/subq-skills"
+        "path": "<repo>"
       }
     ]
   },
