@@ -52,21 +52,22 @@ Request the agent builds (one per ticket, three questions about the same state):
 }
 ```
 
-Answer from the API (a real response, 246 input tokens, about 0.6 s):
+Answer from the API (a real response, probabilities rounded; 246 input tokens, about 0.6 s):
 
 ```json
 { "answers": {
     "urgent":   { "type": "noul",   "noul": 0.81 },
     "team":     { "type": "choice", "choice": "billing", "confidence": 0.62,
-                  "probabilities": { "billing": 0.62, "engineering": 0.37, "sales": 0.0, "other": 0.01 } },
-    "severity": { "type": "score",  "score": 1.91, "confidence": 0.86,
-                  "legend": { "0": "Cosmetic or a question", "1": "Broken but there is a workaround", "2": "Cannot use the product" } } },
+                  "probabilities": { "billing": 0.71, "engineering": 0.21, "sales": 0.01, "other": 0.06 } },
+    "severity": { "type": "score",  "score": 1.92, "confidence": 0.88,
+                  "legend": { "0": "Cosmetic or a question", "1": "Broken but there is a workaround", "2": "Cannot use the product" },
+                  "probabilities": { "0": 0.02, "1": 0.04, "2": 0.94 } } },
   "usage": { "input_tokens": 246, "output_tokens": 0 } }
 ```
 
 What the code does with it: urgent (0.81 above the threshold set on labelled tickets) goes to the top of the queue;
-the team choice has low confidence (0.62, billing vs engineering), so this ticket is routed to a person instead of
-auto-assigned; severity rounds to level 2, "cannot use the product". `skills/subq/examples/snap_client.py` sends
+the team choice has moderate confidence (0.62, billing 0.71 vs engineering 0.21), so whether it is auto-assigned or
+sent to a person depends on the cutoff chosen on labelled data; severity rounds to level 2, "cannot use the product". `skills/subq/examples/snap_client.py` sends
 exactly this request and follows the retry rules from the skill.
 
 ## Install
