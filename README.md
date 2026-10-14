@@ -70,6 +70,42 @@ the team choice has moderate confidence (0.62, billing 0.71 vs engineering 0.21)
 sent to a person depends on the cutoff chosen on labelled data; severity rounds to level 2, "cannot use the product". `skills/subq/examples/snap_client.py` sends
 exactly this request and follows the retry rules from the skill.
 
+## Day-to-day uses from Claude Code
+
+Each scenario: the situation, the Snap question(s), and what the agent or a hook does with the probability.
+"Measured" points to our own numbers; "untested" means it follows from the contract but we have not run it.
+
+1. **Which file holds the bug** (measured). Before reading a repository for a reported issue, the agent sends the
+   issue text plus each candidate file (path, header, or the whole file) and asks one **noul** per file, "must this
+   file change to fix the issue?", or one **choice** over all candidates in a single request. It then reads the top
+   files first. On 200 SWE-bench Verified issues with 10 candidates: top-1 85.5% per file (AUROC 0.98), 87.5% with all
+   10 files in one request (~71k tokens). Details in [snap-vs-jev-swe](https://github.com/kprzybys/snap-vs-jev-swe).
+2. **Triage of CI failures and issues** (untested). For each failure: a **choice** "which area or team" and a
+   **noul** "is this a flaky test rather than a regression". Above a confidence cutoff set on past, labelled failures
+   the agent proceeds on its own; below it, it asks a person instead of guessing.
+3. **A gate before `git commit`** (untested as a hook; one question costs a fraction of a cent and takes under a
+   second). A Claude Code `PreToolUse` hook on `git commit` sends the staged diff and the message and asks a **noul**
+   "does the message describe this diff?" and another "does the diff touch authentication or payments?". A low
+   first answer or a high second one makes the hook exit with code 2, which blocks the command and shows the reason
+   to the agent. Sketch: the hook script reads the diff with `git diff --cached`, calls `snap_client.decide`, and
+   prints the reason to stderr.
+4. **Checking the agent's own claims** (measured on Jev, same contract; Snap untested). Before reporting, the agent
+   pairs each claim about the system ("the tests pass", "the endpoint returns 200") with the tool output from the
+   same turn and asks one **choice**: supports / contradicts / says nothing. "Contradicts" or "says nothing" means
+   the claim is reworded as unverified. With Jev this separated supported from unsupported claims in 34 of 34 cases
+   in a one-session trial, in about 260 ms per claim.
+5. **Tagging thousands of notes, mails or messages** (classification measured on public datasets; your labels
+   untested). A **choice** from a closed label list and a **score** for urgency, in batches, at $0.05 per 1M input
+   tokens: a thousand 500-token notes cost about 2.5 cents. The agent gets a ready list instead of reading everything,
+   and Snap gave identical answers on repeated identical requests within a day in our runs.
+6. **Does a docs change touch the API contract?** (idea). The weekly docs-freshness workflow in this repository
+   only diffs pages. A **noul** over the diff, "does this change alter the request or response contract, limits or
+   pricing?", would separate wording changes from ones that need an edit to the skill.
+
+Two limits apply to all of them. Everything in `state` goes to the SubQ API, so do not send private code or data
+without agreement and the right data-retention setting (zero data retention is enabled per organisation on request).
+And Snap only judges: writing the summary, the commit message or the explanation stays with an LLM.
+
 ## Install
 
 ```bash
