@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+- Evals: `jev-to-snap` facts checked by regex graders instead of one long llm rubric (the haiku judge rejected
+  correct answers); rubric wording no longer penalises a redirect guard or example thresholds; run history in
+  `evals/history/LOG.md` (five runs on 2026-10-14).
+
 ## 0.1.1 — 2026-10-14
 - Example client: no redirects (urllib forwarded the key to the redirect target), retries also on dropped
   connections, `attempts` validated, injectable I/O, 12 unit tests.

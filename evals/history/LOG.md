@@ -50,3 +50,58 @@ Command as in the README, 1 run per arm. 192 s, $1.30.
 Mean Δ +0.33 (run1: +0.47). Conclusion: the jev-to-snap gap without the plugin is luck (whether the agent lands on
 the Models page of the TypeSafe docs); question-design is the stable case of plugin advantage. Single runs are not
 enough for numbers; keep collecting runs in this file. Raw: `2026-10-14-run2.json`, `2026-10-14-run2-report.html`.
+
+## 2026-10-14, run3x3 — three runs per arm, before publishing (0.1.1)
+
+Command as in the README plus `--runs 3 -j 4`. 360 s, $3.85. Overall score 0.84, mean Δ +0.30.
+
+| case | with plugin (3 runs) | without (3 runs) | notes |
+|---|---|---|---|
+| triage-tickets | 1.0, 1.0, 1.0 | 1.0, 1.0, 1.0 | stable, no difference |
+| jev-to-snap | 1.0, 0.6, 0.6 | 0.6, 0.6, 0.6 | without the plugin the Jev side (price, limit) was missing in all three runs this time |
+| question-design | 0.33, 1.0, 1.0 | 0, 0, 0 | without the plugin: no docs read, invented format, every time |
+
+**The with-arm failures were rubric rejections of correct answers, not skill errors** (checked by reading the
+report): in jev-to-snap runs 2 and 3 the agent added a redirect guard around the call, which the skill (0.1.1)
+recommends, and the rubric said "changes only the URL, model and key variable"; in question-design run 1 the agent
+gave thresholds explicitly labelled as examples ("for example above 0.9"), and the rubric said "does not present a
+fixed threshold". Both rubrics were reworded to allow exactly that (hardening around an unchanged request body;
+example numbers marked as examples). This is a grader fix, not a loosening of the facts checked. Re-run follows
+as run4x3. Raw: `2026-10-14-run3x3.json`, `2026-10-14-run3x3-report.html`.
+
+## 2026-10-14, run4x3 — after the rubric fix, three runs per arm
+
+351 s, $3.74. Overall 0.91, mean Δ +0.38.
+
+| case | with plugin (3 runs) | without (3 runs) |
+|---|---|---|
+| triage-tickets | 1.0, 1.0, 1.0 | 1.0, 1.0, 1.0 |
+| jev-to-snap | 1.0, 0.6, 0.6 | 0.6, 0.6, 0.6 |
+| question-design | 1.0, 1.0, 1.0 | 0, 0, 0 |
+
+question-design is now stable at 3/3 with the plugin. jev-to-snap still loses `differences` in 2 of 3 with-runs,
+and reading the rejected answers shows every required fact present and correct (384K vs 64k/32k, $0.05 vs $0.042,
+`detail` body, 429/5xx vs 429/529, body unchanged, redirect guard added). The haiku judge fails long, list-shaped
+answers, exactly what the Claude Code docs warn about ("llm judges are noisy on long inputs, prefer a regex grader").
+Fix: the facts are now six `regex` graders on the final message (context sizes, both prices, `detail`, 5xx/529), and
+the `llm` grader only checks that the request body is unchanged and that no contradicting figure or key appears.
+Re-run of this case follows as run5. Raw: `2026-10-14-run4x3.json`, `2026-10-14-run4x3-report.html`.
+
+## 2026-10-14, run5 — jev-to-snap only, regex fact graders, three runs per arm
+
+162 s, $1.39. With plugin 1.0, 1.0, 1.0; without 1.0, 1.0, 1.0; Δ 0.
+
+With deterministic graders the case no longer discriminates: an agent with WebFetch finds the Snap and Jev figures
+by itself in most runs (in run1 it missed the Jev price once). Earlier "without" failures on this case were partly
+judge noise too. Honest summary of what the evals show so far, 2026-10-14:
+
+- **question-design** is the stable, measurable advantage: 3/3 with the plugin, 0/3 without, in every run.
+  Without the plugin the agent does not read the docs, invents a question format and splits a 40-option choice.
+- **triage-tickets** and **jev-to-snap** pass with and without, because the prompts name the API hosts and the agent
+  has network access. Without network (the pre-eval baseline) the no-plugin agent invents endpoint, model and format.
+- The plugin's remaining value in those two cases is not visible to the graders: it makes the agent read the docs
+  every time instead of most times, and adds the redirect guard, the retry semantics and the calibration warning.
+
+Next cases worth adding: a prompt without any host name ("use SubQ for ..."), an image request, a 400/422 handling
+task, and a Jev → Snap migration judged on thresholds and calibration rather than on figures.
+Raw: `2026-10-14-run5-jev-to-snap.json`, `2026-10-14-run5-jev-to-snap-report.html`.

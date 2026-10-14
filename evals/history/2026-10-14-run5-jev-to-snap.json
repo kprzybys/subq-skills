@@ -1,0 +1,797 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.299",
+  "startedAt": "2026-10-14T17:34:23.066Z",
+  "durationSeconds": 162,
+  "costUsd": 1.3921538,
+  "partial": false,
+  "suite": {
+    "root": "<repo>",
+    "ablation": "with-without",
+    "caseFilter": "jev-to-snap",
+    "threshold": 1,
+    "concurrency": 4,
+    "plugins": [
+      {
+        "name": "subq",
+        "version": "0.1.1",
+        "path": "<repo>"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "jev-to-snap",
+      "dir": "evals/jev-to-snap",
+      "source": "prose",
+      "promptMarkdown": "This Python snippet calls TypeSafe Jev. I want to run the same decision on SubQ Snap instead. Rewrite the snippet for Snap and tell me, in a short list, what else changes between the two (limits, price, errors, retries). Only state things you can back with the vendors' docs; say when something is unknown.\n\n```python\nimport json, os, urllib.request\n\nreq = urllib.request.Request(\n    \"https://api.typesafe.ai/v1/systemone\",\n    data=json.dumps({\n        \"model\": \"jev-latest\",\n        \"state\": {\"review\": \"The blender died after two uses and support never replied.\"},\n        \"questions\": {\n            \"refund\": {\"type\": \"noul\", \"instructions\": \"Does the customer ask for a refund or replacement?\"},\n            \"tone\": {\"type\": \"score\", \"instructions\": \"How angry is `review`?\", \"criteria\": [\"Calm\", \"Annoyed\", \"Furious\"]},\n        },\n    }).encode(),\n    headers={\"Authorization\": f\"Bearer {os.environ['TYPESAFE_API_KEY']}\", \"Content-Type\": \"application/json\"},\n)\nprint(json.load(urllib.request.urlopen(req, timeout=30))[\"answers\"])\n```",
+      "runsPerCase": 1,
+      "timeoutSeconds": 600,
+      "maxTurns": 15,
+      "graders": [
+        {
+          "name": "differences",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "Grade the final answer about moving a decision request from TypeSafe Jev to SubQ Snap. Keep to these two checks only.\n\nPASS if BOTH hold:\n1. The rewritten code sends the same request body (`model`, `state`, named `questions` with `type`/`instructions`/`criteria`) to https://api.subq.ai/v1/systemone with model `subq-snap-preview` and the key from `SUBQ_API_KEY`. Extra code around the call (error handling, timeouts, retries, a guard against redirects) is fine.\n2. No API key value appears, and no figure is stated as certain that contradicts these: Snap context 384K tokens; Jev 64k per request / 32k for state plus the longest question; Snap $0.05 and Jev $0.042 per 1M input tokens; Snap errors in a `detail` object; Snap retries 429 and 5xx, Jev documents 429 and 529.\n\nFAIL if the request is turned into an OpenAI-style chat request, uses a made-up endpoint or model name, embeds a key, or states a contradicting figure as fact. Missing items are NOT a reason to fail here; separate checks cover them.",
+          "config": {
+            "criteria": "Grade the final answer about moving a decision request from TypeSafe Jev to SubQ Snap. Keep to these two checks only.\n\nPASS if BOTH hold:\n1. The rewritten code sends the same request body (`model`, `state`, named `questions` with `type`/`instructions`/`criteria`) to https://api.subq.ai/v1/systemone with model `subq-snap-preview` and the key from `SUBQ_API_KEY`. Extra code around the call (error handling, timeouts, retries, a guard against redirects) is fine.\n2. No API key value appears, and no figure is stated as certain that contradicts these: Snap context 384K tokens; Jev 64k per request / 32k for state plus the longest question; Snap $0.05 and Jev $0.042 per 1M input tokens; Snap errors in a `detail` object; Snap retries 429 and 5xx, Jev documents 429 and 529.\n\nFAIL if the request is turned into an OpenAI-style chat request, uses a made-up endpoint or model name, embeds a key, or states a contradicting figure as fact. Missing items are NOT a reason to fail here; separate checks cover them.",
+            "focus": "last_message"
+          }
+        },
+        {
+          "name": "endpoint",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "last_message",
+            "pattern": "api\\.subq\\.ai/v1/systemone",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "fact-error-body",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "last_message",
+            "pattern": "detail",
+            "flags": "i",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "fact-jev-context",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "last_message",
+            "pattern": "64\\s?k[^\\n]*32\\s?k|32\\s?k[^\\n]*64\\s?k",
+            "flags": "i",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "fact-jev-price",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "last_message",
+            "pattern": "\\$\\s?0\\.042\\b",
+            "flags": "i",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "fact-retry-codes",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "last_message",
+            "pattern": "5xx[\\s\\S]*529|529[\\s\\S]*5xx",
+            "flags": "i",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "fact-snap-context",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "last_message",
+            "pattern": "384\\s?K|393,?216",
+            "flags": "i",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "fact-snap-price",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "last_message",
+            "pattern": "\\$\\s?0\\.05\\b",
+            "flags": "i",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "key",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "last_message",
+            "pattern": "SUBQ_API_KEY",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "model",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "last_message",
+            "pattern": "subq-snap-preview",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "skill-fired",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?subq\""
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 10,
+            "costUsd": 0.213923,
+            "judgeCostUsd": 0.0021642,
+            "durationSeconds": 57,
+            "startedAt": "2026-10-14T17:34:23.095Z",
+            "error": null,
+            "tracePath": "/tmp/claude-eval-WHZEhM/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "differences",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "Here's the snippet rewritten for Snap. Snap uses the same `/v1/systemone` request format as Jev, so only the URL, model ID and key variable change. I also added one line so the request doesn't follow redirects, which I explain after the code.\n\n```python\nimport json, os, urllib.request\n\nclass NoRedirect(urllib.request.HTTPRedirectHandler):\n    def redirect_request(self, *args, **kwargs):\n        return None  # urllib would otherwise resend the Authorization header to the redirect target\n\nreq = urllib.request.Request(\n    \"https://api.subq.ai/v1/systemone\",\n    data=json.dumps({\n        \"model\": \"subq-snap-preview\",\n        \"state\": {\"review\": \"The blender died after two uses and support never replied.\"},\n        \"questions\": {\n            \"refund\": {\"type\": \"noul\", \"instructions\": \"Does the customer ask for a refund or replacement?\"},\n            \"tone\": {\"type\": \"score\", \"instructions\": \"How angry is `review`?\", \"criteria\": [\"Calm\", \"Annoyed\", \"Furious\"]},\n        },\n    }).encode(),\n    headers={\"Authorization\": f\"Bearer {os.environ['SUBQ_API_KEY']}\", \"Content-Type\": \"application/json\"},\n)\nopener = urllib.request.build_opener(NoRedirect)\nprint(json.load(opener.open(req, timeout=30))[\"answers\"])\n```\n\nThe questions and the shape of the answers stay the same: `noul` is still a 0–1 probability of yes, and `score` still returns `score`, `legend`, `probabilities` and `confidence`. Your original Jev snippet can also send your key to a redirect target, so the same fix applies there.\n\n**What else changes (from docs.subq.ai and docs.typesafe.ai, checked today)**\n\n- **Model status:** Snap (`subq-snap-preview`) is a public preview, so its behaviour can change. `jev-latest` points to `jev-1.13.0`, which TypeSafe calls its latest stable release.\n- **Context limit:** Snap takes 384K tokens per request. Jev takes 64k per request, and the state plus the single longest question must fit in 32k. Your snippet is far below both.\n- **Questions per request:** Snap allows 1–16, with question names up to 100 characters. TypeSafe doesn't list a maximum (unknown).\n- **Images:** Snap takes up to 4 images (PNG, JPEG or WebP; 4 MiB each, 8 MiB total; request body up to 13 MiB). Jev takes text only.\n- **Price:** Snap is $0.05 per 1M input tokens; Jev is $0.042 per 1M. Output is free on both, and you're billed on `usage.input_tokens`.\n- **Rate limits:** Jev allows 100K tokens/s and 80 requests/s, and TypeSafe says these can change without notice. SubQ's docs don't give a number (unknown); they only say you get `429` when you exceed it.\n- **Error body:** Snap returns `{\"detail\": {\"error_type\", \"message\"}}`. TypeSafe documents only \"a JSON body describing the problem\", with no detailed schema.\n- **Status codes:** Snap returns 400 (over the token limit or rejected), 401, 402 (no credits), 403 (the key can't use this model), 422 (invalid request), 429, and 5xx (503 means temporarily unavailable). Jev's API page lists 401, 422, 429 and 529 (overloaded).\n- **Retries:** On Snap, retry 429 and 5xx with backoff, and fix 400 or 422 before resending. On Jev, the API page says to retry 429 and 529 with exponential backoff. Its Python SDK retries 408, 429, 5xx, connection errors and timeouts by default: up to 2 retries, starting at 0.5 s and capped at 5 s.\n- **Not covered by the docs:** whether the same thresholds give the same results on both models. Re-tune any cutoffs you set for Jev using your own labelled cases before relying on Snap's numbers."
+              },
+              {
+                "name": "endpoint",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched api\\.subq\\.ai/v1/systemone",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-error-body",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched detail",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-jev-context",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 64\\s?k[^\\n]*32\\s?k|32\\s?k[^\\n]*64\\s?k",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-jev-price",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\$\\s?0\\.042\\b",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-retry-codes",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 5xx[\\s\\S]*529|529[\\s\\S]*5xx",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-snap-context",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 384\\s?K|393,?216",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-snap-price",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\$\\s?0\\.05\\b",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "key",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched SUBQ_API_KEY",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "model",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched subq-snap-preview",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 10,
+            "costUsd": 0.2339257,
+            "judgeCostUsd": 0.0011551,
+            "durationSeconds": 67,
+            "startedAt": "2026-10-14T17:34:23.096Z",
+            "error": null,
+            "tracePath": "/tmp/claude-eval-WQLM05/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "differences",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "Here's the snippet for Snap. Only three things change: the URL, the model ID and the key variable. The request body and the `answers` shape are the same for both vendors.\n\n```python\nimport json, os, urllib.request\n\nclass NoRedirect(urllib.request.HTTPRedirectHandler):\n    def redirect_request(self, *args, **kwargs):\n        return None  # don't resend the Authorization header to a redirect target\n\nreq = urllib.request.Request(\n    \"https://api.subq.ai/v1/systemone\",\n    data=json.dumps({\n        \"model\": \"subq-snap-preview\",\n        \"state\": {\"review\": \"The blender died after two uses and support never replied.\"},\n        \"questions\": {\n            \"refund\": {\"type\": \"noul\", \"instructions\": \"Does the customer ask for a refund or replacement?\"},\n            \"tone\": {\"type\": \"score\", \"instructions\": \"How angry is `review`?\", \"criteria\": [\"Calm\", \"Annoyed\", \"Furious\"]},\n        },\n    }).encode(),\n    headers={\"Authorization\": f\"Bearer {os.environ['SUBQ_API_KEY']}\", \"Content-Type\": \"application/json\"},\n)\nprint(json.load(urllib.request.build_opener(NoRedirect).open(req, timeout=30))[\"answers\"])\n```\n\nI added the `NoRedirect` handler. Without it, `urllib` follows a redirect and can send your key to the new host. Your Jev snippet has the same problem.\n\n**What else changes** (checked today against docs.subq.ai and docs.typesafe.ai):\n\n- **Model status:** Snap is a public preview (`subq-snap-preview`), so it may change before general availability. `jev-latest` is an alias for the fixed version `jev-1.13.0`.\n- **Context:** Snap allows 384K tokens per request (393,216), and requests at or near the limit get a `400`. Jev allows 64k tokens for the state plus all questions, and 32k for the state plus the longest single question.\n- **Questions per request:** Snap allows 1–16, with names up to 100 characters. TypeSafe's docs give no maximum and no name-length limit. Both allow 2–255 choice options and 2–10 score levels.\n- **Images:** Snap takes up to 4 (PNG, JPEG or WebP, 4 MiB each, 8 MiB total). Jev is text only.\n- **Price:** Snap costs $0.05 per 1M input tokens; Jev costs $0.042. Output is free on both.\n- **Rate limits:** Jev's are 100K tokens/s and 80 requests/s, and TypeSafe says these can change. SubQ's limits are **unknown**: the docs only say that going over returns `429`.\n- **Error codes:** Snap returns `400` (too many tokens or rejected), `401`, `402` (no credits), `403` (model not allowed for this key), `422`, `429` and `5xx` (`503` means temporarily unavailable). Jev's docs list `401`, `422`, `429` and `529` (overloaded).\n- **Error body:** Snap uses `{\"detail\": {\"error_type\": ..., \"message\": ...}}`. TypeSafe only says \"a JSON body\" and gives no format.\n- **Retries:** SubQ says to retry `429` and `5xx` with backoff, and not to retry `400` or `422` until you fix the request. TypeSafe's API page says to retry `429` and `529` with exponential backoff. Its Python SDK by default also retries `408` and all `5xx`, up to 2 retries starting at 0.5 s and capped at 5 s. SubQ documents no retry counts or delays, so you choose them. Neither snippet retries at all right now.\n\nThe docs don't compare accuracy or latency, so that's unknown from documented sources. Probability thresholds you tuned on Jev's answers may not hold for Snap, so test them again on your own labelled cases."
+              },
+              {
+                "name": "endpoint",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched api\\.subq\\.ai/v1/systemone",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-error-body",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched detail",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-jev-context",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 64\\s?k[^\\n]*32\\s?k|32\\s?k[^\\n]*64\\s?k",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-jev-price",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\$\\s?0\\.042\\b",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-retry-codes",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 5xx[\\s\\S]*529|529[\\s\\S]*5xx",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-snap-context",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 384\\s?K|393,?216",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-snap-price",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\$\\s?0\\.05\\b",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "key",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched SUBQ_API_KEY",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "model",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched subq-snap-preview",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 10,
+            "costUsd": 0.20479250000000002,
+            "judgeCostUsd": 0.001505,
+            "durationSeconds": 54,
+            "startedAt": "2026-10-14T17:34:23.096Z",
+            "error": null,
+            "tracePath": "/tmp/claude-eval-oeQSx8/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "differences",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "I checked both vendors' live docs: the SubQ Decisions API and Models pages, and TypeSafe's API, Models and Python SDK retry pages. Your request already uses the shared contract (`model`, `state`, typed `questions`), so the questions don't change. Only the URL, model ID and key variable do.\n\n```python\nimport json, os, urllib.request\n\nclass NoRedirect(urllib.request.HTTPRedirectHandler):\n    def redirect_request(self, *args, **kwargs):\n        return None  # urllib would otherwise resend the Authorization header to the redirect target\n\nreq = urllib.request.Request(\n    \"https://api.subq.ai/v1/systemone\",\n    data=json.dumps({\n        \"model\": \"subq-snap-preview\",\n        \"state\": {\"review\": \"The blender died after two uses and support never replied.\"},\n        \"questions\": {\n            \"refund\": {\"type\": \"noul\", \"instructions\": \"Does the customer ask for a refund or replacement?\"},\n            \"tone\": {\"type\": \"score\", \"instructions\": \"How angry is `review`?\", \"criteria\": [\"Calm\", \"Annoyed\", \"Furious\"]},\n        },\n    }).encode(),\n    headers={\"Authorization\": f\"Bearer {os.environ['SUBQ_API_KEY']}\", \"Content-Type\": \"application/json\"},\n)\nopener = urllib.request.build_opener(NoRedirect)\nprint(json.load(opener.open(req, timeout=30))[\"answers\"])\n```\n\nI added the redirect blocker because it's a safety fix, not a Snap difference. Your Jev snippet has the same exposure.\n\n**What else changes (Snap vs Jev)**\n\n- **Answers:** same shape. `noul` is a probability of yes from 0 to 1. A score answer is a weighted `score` plus `legend`, `probabilities` and `confidence`. Both docs allow 2–10 score levels and up to 255 choice options.\n- **Context:** Snap allows 384K tokens per request (393,216), and requests over or close to that get `400`. Jev allows 64k for the state plus all questions, and 32k for the state plus the single longest question.\n- **Questions per request:** Snap allows 1–16, with names up to 100 characters. TypeSafe's docs don't give a limit, so that's **unknown** for Jev.\n- **Inputs:** Snap takes text, JSON or up to 4 images (PNG/JPEG/WebP; 4 MiB each, 8 MiB total, 13 MiB request body). Jev takes text only.\n- **Price:** both charge for input tokens only, and output is free. Snap costs $0.05 per 1M input tokens and Jev $0.042 per 1M.\n- **Rate limits:** Jev's docs give 100K tokens/s and 80 requests/s and say these can change. Snap's docs mention `429` but give no numbers, so its limits are **unknown**.\n- **Errors:** Snap returns `{\"detail\": {\"error_type\", \"message\"}}` with codes 400, 401, 402 (no credits), 403 (key can't use this model), 422, 429 and 5xx (503 means temporarily unavailable). Jev's docs list 401, 422, 429 and 529 (overloaded) and say the body is JSON, but give no exact schema.\n- **Retries:** for Snap, retry 429 and 5xx with backoff, and fix the request for anything else. For Jev, the API docs say to retry 429 and 529 with exponential backoff. Jev's Python SDK by default retries 408, 429 and 500–599, plus timeouts and dropped connections. It makes 2 retries starting at 0.5 s, doubling up to 5 s, within a 30 s budget, and honours `Retry-After`. Snap has no SDK retry defaults or `Retry-After` behaviour in its docs, so those are **unknown**. Neither snippet retries as written.\n- **Status:** Snap is a public preview, so the model and its behaviour may change before general availability. `jev-latest` currently points to `jev-1.13.0`, the latest stable release.\n\nThresholds you tuned on Jev's probabilities won't carry over to Snap, so recalibrate them on your own labelled cases. Also, I couldn't find Jev's data-retention policy on the pages I read. If the reviews contain personal data, check SubQ's data-retention page before switching."
+              },
+              {
+                "name": "endpoint",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched api\\.subq\\.ai/v1/systemone",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-error-body",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched detail",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-jev-context",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 64\\s?k[^\\n]*32\\s?k|32\\s?k[^\\n]*64\\s?k",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-jev-price",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\$\\s?0\\.042\\b",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-retry-codes",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 5xx[\\s\\S]*529|529[\\s\\S]*5xx",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-snap-context",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 384\\s?K|393,?216",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-snap-price",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\$\\s?0\\.05\\b",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "key",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched SUBQ_API_KEY",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "model",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched subq-snap-preview",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 12,
+            "costUsd": 0.2267457,
+            "judgeCostUsd": 0.0014108999999999997,
+            "durationSeconds": 79,
+            "startedAt": "2026-10-14T17:34:23.096Z",
+            "error": null,
+            "tracePath": "/tmp/claude-eval-XlxUub/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "differences",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "The request shape is the same on both, so only the URL, model ID and API-key variable change:\n\n```python\nimport json, os, urllib.request\n\nreq = urllib.request.Request(\n    \"https://api.subq.ai/v1/systemone\",\n    data=json.dumps({\n        \"model\": \"subq-snap-preview\",\n        \"state\": {\"review\": \"The blender died after two uses and support never replied.\"},\n        \"questions\": {\n            \"refund\": {\"type\": \"noul\", \"instructions\": \"Does the customer ask for a refund or replacement?\"},\n            \"tone\": {\"type\": \"score\", \"instructions\": \"How angry is `review`?\", \"criteria\": [\"Calm\", \"Annoyed\", \"Furious\"]},\n        },\n    }).encode(),\n    headers={\"Authorization\": f\"Bearer {os.environ['SUBQ_API_KEY']}\", \"Content-Type\": \"application/json\"},\n)\nprint(json.load(urllib.request.urlopen(req, timeout=30))[\"answers\"])\n```\n\nThe answers come back in the same shape: `noul` gives a 0–1 value, and `score` gives `score`, `legend`, `probabilities` and `confidence`. I haven't run either snippet.\n\n**What else changes, per the docs (Jev → Snap):**\n\n- **Status:** Jev is generally available; `jev-latest` currently points to `jev-1.13.0`. Snap is a public preview, and SubQ says \"Model availability and capabilities may change.\"\n- **Price:** both charge only for input tokens, with output free. Jev is $0.042 per million tokens; Snap is $0.05 per million, about 19% more.\n- **Context:** Jev allows 64K tokens per request, and 32K for the state plus the single longest question. Snap allows 384K tokens (393,216), and requests at or near that limit return `400`.\n- **Questions per request:** Snap allows 1–16, with names up to 100 characters. Jev's maximum isn't documented. Both allow 2–10 score levels and up to 255 choice options.\n- **Inputs:** Jev is text only. Snap also accepts up to 4 images (PNG, JPEG or WebP, raw base64, up to 4 MiB each and 8 MiB in total, with a 13 MiB body).\n- **Rate limits:** Jev allows 80 requests/sec and 100K tokens/sec, \"can change without notice.\" **Snap's limits are unknown:** the docs only say a `429` is returned.\n- **Errors:**\n  - Jev's API page lists `401`, `422`, `429` and `529 Overloaded`. Its SDK also maps `400`, `403`, `404` and other `5xx` codes.\n  - Snap lists `400` (over the token limit or rejected), `401`, `402` (out of credits), `403` (key can't use the model), `422` (also covers bad images), `429` and `5xx`, where `503` means temporarily unavailable.\n  - Snap error bodies have `detail.error_type` and `detail.message`.\n  - Jev has no `402` and Snap has no `529`, so any status-code handling needs updating.\n- **Retries:** Jev's docs say to retry `429`/`529` with exponential backoff. Its Python SDK does this by default: 2 retries on 408, 429 and 5xx; backoff from 0.5s up to 5s; it honours `Retry-After`; and the 30s timeout covers the whole call. **Snap has no retry guidance and no SDK** for this endpoint. The docs mention neither `Retry-After` nor request IDs, so both are unknown. Neither version of your snippet retries, since it calls the API directly.\n- **Language:** Jev's docs say English works best. Snap's docs don't say, so that's unknown.\n\nI got these details from the vendors' doc pages through a summarising fetch tool, so they're paraphrased rather than quoted word for word. Check the Snap numbers against the docs before relying on them, especially since Snap is in preview."
+              },
+              {
+                "name": "endpoint",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched api\\.subq\\.ai/v1/systemone",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-error-body",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched detail",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-jev-context",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 64\\s?k[^\\n]*32\\s?k|32\\s?k[^\\n]*64\\s?k",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-jev-price",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\$\\s?0\\.042\\b",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-retry-codes",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 5xx[\\s\\S]*529|529[\\s\\S]*5xx",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-snap-context",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 384\\s?K|393,?216",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-snap-price",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\$\\s?0\\.05\\b",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "key",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched SUBQ_API_KEY",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "model",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched subq-snap-preview",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 13,
+            "costUsd": 0.23484570000000005,
+            "judgeCostUsd": 0.0011741,
+            "durationSeconds": 77,
+            "startedAt": "2026-10-14T17:35:16.717Z",
+            "error": null,
+            "tracePath": "/tmp/claude-eval-sNawTK/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "differences",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "Here's the snippet rewritten for Snap. It's the same request shape on a different host, with a different model ID and key:\n\n```python\nimport json, os, urllib.request\n\nreq = urllib.request.Request(\n    \"https://api.subq.ai/v1/systemone\",\n    data=json.dumps({\n        \"model\": \"subq-snap-preview\",\n        \"state\": {\"review\": \"The blender died after two uses and support never replied.\"},\n        \"questions\": {\n            \"refund\": {\"type\": \"noul\", \"instructions\": \"Does the customer ask for a refund or replacement?\"},\n            \"tone\": {\"type\": \"score\", \"instructions\": \"How angry is `review`?\", \"criteria\": [\"Calm\", \"Annoyed\", \"Furious\"]},\n        },\n    }).encode(),\n    headers={\"Authorization\": f\"Bearer {os.environ['SUBQ_API_KEY']}\", \"Content-Type\": \"application/json\"},\n)\nprint(json.load(urllib.request.urlopen(req, timeout=30))[\"answers\"])\n```\n\nThe path (`/v1/systemone`), the question types and the response shape (`answers.<name>.noul`, plus `score`, `legend`, `probabilities` and `confidence` for score questions) match on both. You'll need a SubQ key from console.subq.ai with credits on the account.\n\n**What else changes** (from docs.typesafe.ai and docs.subq.ai):\n\n- **Model status:** Jev (`jev-latest` → `jev-1.13.0`) is the stable release. `subq-snap-preview` is in public preview, and SubQ says \"availability and capabilities may change.\"\n- **Price:** Jev costs $0.042 per 1M input tokens. Snap costs $0.05 per 1M input tokens. Output tokens are free on both.\n- **Context:** Jev allows 64k tokens per request, with 32k for `state` plus the longest question. Snap allows 384K tokens (393,216), and requests at or near that limit return `400`.\n- **Images:** Jev doesn't accept them. Snap takes up to 4 (PNG, JPEG or WebP as base64), up to 4 MiB each and 8 MiB in total, in a request body of up to 13 MiB.\n- **Questions per request:** Snap allows 1–16 questions, with names up to 100 characters. TypeSafe doesn't publish a limit. Both allow up to 10 score levels and 255 choice options.\n- **Rate limits:** Jev allows 100K tokens/s and 80 requests/s (\"can change without notice\"). SubQ publishes no figures, only that `429` means the rate limit was exceeded.\n- **Errors:**\n  - **On both:** `400`, `401`, `403`, `422` and `429`.\n  - **SubQ only:** `402` (no credits). SubQ also sends a `503` when the service is temporarily unavailable, and its error body is `{\"detail\": {\"error_type\", \"message\"}}`.\n  - **TypeSafe only:** `529` (overloaded) and `404`. TypeSafe doesn't define its error body format.\n- **Retries:** TypeSafe says to retry `429`/`529` with exponential backoff. Its SDK defaults to 2 retries on 408, 429 and 5xx, with backoff from 0.5s up to 5s, honoring `Retry-After`, within a 30s total budget. SubQ has no retry guidance, no SDK for this endpoint, and doesn't say whether it sends `Retry-After`. Neither snippet retries as written, so any retry logic for Snap is up to you.\n- **Timeouts:** Neither vendor documents a server-side request timeout. The 30s in the snippet is just your client-side timeout.\n\nI haven't run the Snap request, so the Snap side is backed by the docs only."
+              },
+              {
+                "name": "endpoint",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched api\\.subq\\.ai/v1/systemone",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-error-body",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched detail",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-jev-context",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 64\\s?k[^\\n]*32\\s?k|32\\s?k[^\\n]*64\\s?k",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-jev-price",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\$\\s?0\\.042\\b",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-retry-codes",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 5xx[\\s\\S]*529|529[\\s\\S]*5xx",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-snap-context",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 384\\s?K|393,?216",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-snap-price",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\$\\s?0\\.05\\b",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "key",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched SUBQ_API_KEY",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "model",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched subq-snap-preview",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 17,
+            "costUsd": 0.2779212,
+            "judgeCostUsd": 0.0011248000000000005,
+            "durationSeconds": 105,
+            "startedAt": "2026-10-14T17:35:20.344Z",
+            "error": null,
+            "tracePath": "/tmp/claude-eval-u783z0/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "differences",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "Snap uses the same request shape as Jev: same path, same `state`/`questions`, and the same `noul`/`score` types and response format. Only the host, the model ID and the API key change. I haven't run this against either API.\n\n```python\nimport json, os, urllib.request\n\nreq = urllib.request.Request(\n    \"https://api.subq.ai/v1/systemone\",\n    data=json.dumps({\n        \"model\": \"subq-snap-preview\",\n        \"state\": {\"review\": \"The blender died after two uses and support never replied.\"},\n        \"questions\": {\n            \"refund\": {\"type\": \"noul\", \"instructions\": \"Does the customer ask for a refund or replacement?\"},\n            \"tone\": {\"type\": \"score\", \"instructions\": \"How angry is `review`?\", \"criteria\": [\"Calm\", \"Annoyed\", \"Furious\"]},\n        },\n    }).encode(),\n    headers={\"Authorization\": f\"Bearer {os.environ['SUBQ_API_KEY']}\", \"Content-Type\": \"application/json\"},\n)\nprint(json.load(urllib.request.urlopen(req, timeout=60))[\"answers\"])\n```\n\nI raised the timeout from 30 to 60 seconds because SubQ's own examples use 60. Their docs don't give a server-side timeout.\n\n**What else changes**\n\n- **Model:** `jev-latest` (currently `jev-1.13.0`) becomes `subq-snap-preview`. Snap is a public preview, and SubQ says the key returns `403` if it isn't allowed to use the model.\n- **Price:** both charge for input tokens only, and output is free. Jev costs $0.042 per million tokens; Snap costs $0.05 per million. SubQ's homepage also offers 100M free tokens to the first 10,000 users.\n- **Context:**\n  - Jev allows 64k tokens per request, and `state` plus the longest question must fit in 32k.\n  - Snap allows 384K tokens (393,216). Requests over the limit, or close to it, fail with `400`.\n- **Other limits:**\n  - Snap documents 1–16 questions per request, question names up to 100 characters, and a request body up to 13 MiB.\n  - Snap also accepts up to 4 images (PNG, JPEG or WebP; at most 4 MiB each and 8 MiB in total). Jev takes text only.\n  - The two share some limits: choice questions allow up to 255 options, and score questions 2–10 levels.\n  - TypeSafe doesn't document a maximum number of questions.\n- **Rate limits:**\n  - Jev allows 100K tokens/sec and 80 requests/sec, which TypeSafe says may change without notice.\n  - For Snap, I found no rate-limit numbers in the parts of the docs I read; they only list `429`. I read the Decisions API page and the first half of the full docs, not the second half, so check the console or ask SubQ.\n- **Errors:**\n  - Both use `401`, `422` and `429`.\n  - TypeSafe also documents `529` (overloaded).\n  - SubQ also documents `400` (over the token limit or rejected by the model), `402` (insufficient credits), `403` (key can't use the model) and `503` (temporarily unavailable).\n  - SubQ error bodies are `{\"detail\": {\"error_type\", \"message\"}}`. TypeSafe's REST docs don't specify an error body format.\n- **Retries:**\n  - TypeSafe says to retry `429` and `529` with backoff. Its Python SDK retries 408, 429, 5xx, connection errors and timeouts automatically: up to 2 retries, 0.5 s backoff doubling to a 5 s cap, honouring `Retry-After`, within a 30 s total budget.\n  - SubQ says to retry `429` and `5xx` with exponential backoff, and not to retry `400` or `422`. It has no Snap SDK (the docs point to plain HTTP or the OpenAI SDK) and doesn't mention `Retry-After`.\n  - Neither snippet retries; plain `urllib` doesn't. If you need retries on Snap, you'll have to write the loop yourself.\n\nSources: docs.typesafe.ai (`api.md`, `models.md`, `sdk/python/api/retries.md`, `sdk/python/api/exceptions.md`), docs.subq.ai (Decisions API, Models, Authentication), and subq.ai."
+              },
+              {
+                "name": "endpoint",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched api\\.subq\\.ai/v1/systemone",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-error-body",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched detail",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-jev-context",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 64\\s?k[^\\n]*32\\s?k|32\\s?k[^\\n]*64\\s?k",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-jev-price",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\$\\s?0\\.042\\b",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-retry-codes",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 5xx[\\s\\S]*529|529[\\s\\S]*5xx",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-snap-context",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 384\\s?K|393,?216",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "fact-snap-price",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\$\\s?0\\.05\\b",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "key",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched SUBQ_API_KEY",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "model",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched subq-snap-preview",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1,
+        "scoreWithout": 1,
+        "passRateWithout": 1,
+        "delta": 0
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 1,
+    "casesPassed": 1,
+    "overallScore": 1,
+    "overallPassRate": 1,
+    "meanDelta": 0
+  }
+}
